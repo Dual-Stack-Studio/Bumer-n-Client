@@ -13,6 +13,7 @@ import { RootStackParamList } from '../../../App'; // Ajusta los '../' si tu App
 import NavBar from '../components/NavBar'; 
 import mockFavores from '../../data/mockFavores.json';
 import Footer from '../components/Footer';
+import BurgerMenu from '../components/BurgerMenu';
 
 // --- FÓRMULAS MATEMÁTICAS (Haversine) ---
 function getDistanciaEnKm(lat1: number, lon1: number, lat2: number, lon2: number) {
@@ -107,6 +108,8 @@ export default function MainScreen() {
       </MapView>
 
       <NavBar busqueda={busqueda} setBusqueda={setBusqueda} />
+      {/* EL BURGER MENU FLOTANTE */}
+      <BurgerMenu />
 
       <BottomSheet 
         ref={bottomSheetRef} 

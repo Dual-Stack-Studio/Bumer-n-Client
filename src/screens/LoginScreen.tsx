@@ -1,9 +1,44 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+// Importamos la librería nativa de inicio de sesión
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 
-export default function LoginScreen({ navigation }: any) {
+// 1. Añadimos 'route' para poder recibir los parámetros de navegación
+export default function LoginScreen({ navigation, route }: any) {
   const insets = useSafeAreaInsets();
+
+  // 2. Extraemos el destino si es que venimos redirigidos (ej. desde el botón "Pedir")
+  const { redirectTo } = route?.params || {};
+
+  // 3. Función encargada de disparar el flujo nativo
+  const iniciarSesionConGoogle = async () => {
+    try {
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      
+      // Recibimos la respuesta completa del inicio de sesión
+      const response = await GoogleSignin.signIn();
+      
+      // Extraemos el usuario accediendo de forma segura a response.data
+      const nombreUsuario = response.data?.user?.name;
+      
+      alert(`¡Hola, ${nombreUsuario || 'Vecino'}! Login exitoso.`);
+      console.log('Usuario de Google detectado:', response.data);
+      
+      // 4. LÓGICA DE REDIRECCIÓN INTELIGENTE
+      if (redirectTo) {
+        // Si veníamos de intentar una acción bloqueada, lo mandamos directo allá
+        navigation.navigate(redirectTo);
+      } else {
+        // Si entró al login por su cuenta (ej. botón de perfil), solo volvemos atrás
+        navigation.goBack();
+      }
+
+    } catch (error: any) {
+      alert("Error de Google: " + error.message);
+      console.log("Error detallado:", JSON.stringify(error));
+    }
+  };
 
   return (
     <View style={[styles.container, { paddingTop: Math.max(insets.top, 20) }]}>
@@ -27,8 +62,12 @@ export default function LoginScreen({ navigation }: any) {
           Inicia sesión para pedir ayuda, ofrecer favores y conectarte con tus vecinos.
         </Text>
 
-        {/* Botón de Google */}
-        <TouchableOpacity style={styles.googleButton} activeOpacity={0.8}>
+        {/* Botón de Google conectado */}
+        <TouchableOpacity 
+          style={styles.googleButton} 
+          activeOpacity={0.8}
+          onPress={iniciarSesionConGoogle}
+        >
           <Image 
             source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg' }} 
             style={styles.googleIcon} 
@@ -74,7 +113,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingBottom: 60, // Sube un poco el contenido para centrarlo visualmente
+    paddingBottom: 60,
   },
   iconContainer: {
     backgroundColor: '#ccfbf1',
@@ -102,8 +141,6 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     marginBottom: 48,
   },
-  
-  // --- BOTONES ---
   googleButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -115,7 +152,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     justifyContent: 'center',
     marginBottom: 16,
-    // Sombra sutil
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -132,7 +168,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#334155',
   },
-
   appleButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -147,14 +182,13 @@ const styles = StyleSheet.create({
     fontSize: 22,
     color: '#ffffff',
     marginRight: 8,
-    marginTop: -4, // Ajuste óptico para el icono de Apple
+    marginTop: -4,
   },
   appleButtonText: {
     fontSize: 16,
     fontWeight: '700',
     color: '#ffffff',
   },
-
   footerText: {
     marginTop: 32,
     fontSize: 13,
