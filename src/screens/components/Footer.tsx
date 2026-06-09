@@ -1,27 +1,42 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+// 1. Importamos el hook de navegación
+import { useNavigation } from '@react-navigation/native';
 
 export default function Footer() {
-  // Usamos insets para saber cuánto espacio requiere la "raya" inferior del iPhone
   const insets = useSafeAreaInsets();
+  
+  // 2. Inicializamos el objeto de navegación
+  const navigation = useNavigation<any>();
 
   return (
     <View style={[styles.footerContainer, { paddingBottom: Platform.OS === 'ios' ? insets.bottom : 16 }]}>
+      
+      {/* Botón Explorar (Activo por defecto) */}
       <TouchableOpacity style={styles.tab}>
         <Text style={styles.icon}>🗺️</Text>
         <Text style={[styles.label, styles.activeLabel]}>Explorar</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.tab}>
+      {/* 3. Agregamos el evento onPress para abrir el Login */}
+      <TouchableOpacity 
+        style={styles.tab}
+        onPress={() => navigation.navigate('Login')}
+      >
         <Text style={styles.icon}>➕</Text>
         <Text style={styles.label}>Pedir</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.tab}>
+      {/* 4. Repetimos el evento onPress para el Perfil */}
+      <TouchableOpacity 
+        style={styles.tab}
+        onPress={() => navigation.navigate('Login')}
+      >
         <Text style={styles.icon}>👤</Text>
         <Text style={styles.label}>Perfil</Text>
       </TouchableOpacity>
+
     </View>
   );
 }
