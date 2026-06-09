@@ -52,7 +52,9 @@ export default {
           }
         }
       ],
+      "@react-native-google-signin/google-signin",
       "expo-status-bar"
-    ]
+    ],
+    
   }
 };

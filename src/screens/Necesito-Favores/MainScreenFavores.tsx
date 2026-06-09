@@ -1,18 +1,23 @@
 import React, { useRef, useMemo, useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'; // <-- Añadimos TouchableOpacity
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import MapView, { Marker } from 'react-native-maps';
 import BottomSheet, { BottomSheetFlatList } from '@gorhom/bottom-sheet';
+
+// --- IMPORTACIONES DE NAVEGACIÓN ---
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../../../App'; // Ajusta los '../' si tu App.tsx está en otro nivel
 
 // Importamos tu nuevo componente NavBar
 import NavBar from '../components/NavBar'; 
 import mockFavores from '../../data/mockFavores.json';
 import Footer from '../components/Footer';
+import BurgerMenu from '../components/BurgerMenu';
 
 // --- FÓRMULAS MATEMÁTICAS (Haversine) ---
-// Calcula la distancia en kilómetros entre dos coordenadas GPS
 function getDistanciaEnKm(lat1: number, lon1: number, lat2: number, lon2: number) {
-  const R = 6371; // Radio de la Tierra en km
+  const R = 6371; 
   const dLat = (lat2 - lat1) * (Math.PI / 180);
   const dLon = (lon2 - lon1) * (Math.PI / 180);
   const a =
@@ -23,7 +28,6 @@ function getDistanciaEnKm(lat1: number, lon1: number, lat2: number, lon2: number
   return R * c; 
 }
 
-// Ampliamos la interfaz para incluir la distancia calculada
 interface Favor {
   id: string;
   titulo: string;
@@ -38,22 +42,22 @@ interface Favor {
 
 export default function MainScreen() {
   const bottomSheetRef = useRef<BottomSheet>(null);
-const snapPoints = useMemo(() => ['20%', '45%', '85%'], []);
+  const snapPoints = useMemo(() => ['20%', '45%', '85%'], []);
+
+  // --- INICIALIZAMOS LA NAVEGACIÓN ---
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   // Estados
   const [miUbicacion] = useState({ latitude: 48.1147, longitude: 14.5661 });
-  const [busqueda, setBusqueda] = useState(''); // Estado para lo que el usuario escribe
+  const [busqueda, setBusqueda] = useState(''); 
 
-  // Lógica principal: Filtrado, Cálculo de Distancia y Ordenamiento Doble
   const favoresProcesados = useMemo(() => {
-    // 1. Filtrar por búsqueda (ignora mayúsculas/minúsculas)
     const textoBusqueda = busqueda.toLowerCase();
     const filtrados = mockFavores.filter((favor) => 
       favor.titulo.toLowerCase().includes(textoBusqueda) || 
       favor.categoria.toLowerCase().includes(textoBusqueda)
     );
 
-    // 2. Calcular distancias para los que pasaron el filtro
     const conDistancias = filtrados.map((favor) => {
       const distancia = getDistanciaEnKm(
         miUbicacion.latitude,
@@ -64,17 +68,13 @@ const snapPoints = useMemo(() => ['20%', '45%', '85%'], []);
       return { ...favor, distancia };
     });
 
-    // 3. Ordenar: Primero por Categoría, luego por Distancia
     return conDistancias.sort((a, b) => {
       if (a.categoria < b.categoria) return -1;
       if (a.categoria > b.categoria) return 1;
-      
-      // Si son de la misma categoría, el más cercano va primero
       return (a.distancia || 0) - (b.distancia || 0);
     });
   }, [miUbicacion, busqueda]);
 
-  // Función auxiliar para formatear la distancia visualmente
   const formatearDistancia = (distKm?: number) => {
     if (distKm === undefined) return '';
     if (distKm < 1) return `${Math.round(distKm * 1000)} m`; 
@@ -107,8 +107,9 @@ const snapPoints = useMemo(() => ['20%', '45%', '85%'], []);
         ))}
       </MapView>
 
-      {/* Componente NavBar extraído y limpio */}
       <NavBar busqueda={busqueda} setBusqueda={setBusqueda} />
+      {/* EL BURGER MENU FLOTANTE */}
+      <BurgerMenu />
 
       <BottomSheet 
         ref={bottomSheetRef} 
@@ -116,7 +117,7 @@ const snapPoints = useMemo(() => ['20%', '45%', '85%'], []);
         snapPoints={snapPoints}
         backgroundStyle={styles.bottomSheetBackground}
         handleIndicatorStyle={styles.handleIndicator}
-        keyboardBehavior="extend" // Ayuda a que el BottomSheet suba si el teclado lo tapa
+        keyboardBehavior="extend" 
         bottomInset={80}
       >
         
@@ -133,26 +134,32 @@ const snapPoints = useMemo(() => ['20%', '45%', '85%'], []);
           data={favoresProcesados as Favor[]} 
           keyExtractor={(item: Favor) => item.id}
           contentContainerStyle={styles.listContent}
-          keyboardShouldPersistTaps="handled" // Cierra el teclado al interactuar con la lista
+          keyboardShouldPersistTaps="handled" 
           renderItem={({ item }: { item: Favor }) => (
-            <View style={styles.card}>
-              <View style={styles.cardHeader}>
-                <Text style={styles.cardTitle} numberOfLines={1}>{item.titulo}</Text>
-                
-                <View style={styles.badgesContainer}>
-                  <Text style={styles.distanceText}>
-                    📍 {formatearDistancia(item.distancia)}
-                  </Text>
-                  <View style={styles.categoryBadge}>
-                    <Text style={styles.categoryText}>{item.categoria}</Text>
+            // --- ENVOLVEMOS LA CARD PARA HACERLA CLICKLEABLE ---
+            <TouchableOpacity 
+              activeOpacity={0.7} 
+              onPress={() => navigation.navigate('Detail', { favor: item })}
+            >
+              <View style={styles.card}>
+                <View style={styles.cardHeader}>
+                  <Text style={styles.cardTitle} numberOfLines={1}>{item.titulo}</Text>
+                  
+                  <View style={styles.badgesContainer}>
+                    <Text style={styles.distanceText}>
+                      📍 {formatearDistancia(item.distancia)}
+                    </Text>
+                    <View style={styles.categoryBadge}>
+                      <Text style={styles.categoryText}>{item.categoria}</Text>
+                    </View>
                   </View>
-                </View>
 
+                </View>
+                <Text style={styles.cardDesc} numberOfLines={2}>
+                  {item.descripcion}
+                </Text>
               </View>
-              <Text style={styles.cardDesc} numberOfLines={2}>
-                {item.descripcion}
-              </Text>
-            </View>
+            </TouchableOpacity>
           )}
         />
       </BottomSheet>
