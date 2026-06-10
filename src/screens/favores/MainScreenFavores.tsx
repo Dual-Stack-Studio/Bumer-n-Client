@@ -10,10 +10,12 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../App'; // Ajusta los '../' si tu App.tsx está en otro nivel
 
 // Importamos tu nuevo componente NavBar
-import NavBar from '../components/NavBar'; 
+import NavBar from '../favores/components/NavBar'; 
 import mockFavores from '../../data/mockFavores.json';
-import Footer from '../components/Footer';
-import BurgerMenu from '../components/BurgerMenu';
+import Footer from '../favores/components/Footer';
+import BurgerMenu from '../favores/components/BurgerMenu';
+import CategoryPills from './components/CategoryPills';
+import { Favor } from '../../types/favor';
 
 // --- FÓRMULAS MATEMÁTICAS (Haversine) ---
 function getDistanciaEnKm(lat1: number, lon1: number, lat2: number, lon2: number) {
@@ -28,22 +30,33 @@ function getDistanciaEnKm(lat1: number, lon1: number, lat2: number, lon2: number
   return R * c; 
 }
 
-interface Favor {
-  id: string;
-  titulo: string;
-  descripcion: string;
-  categoria: string;
-  ubicacion: {
-    latitude: number;
-    longitude: number;
-  };
-  distancia?: number;
-}
+// interface Favor {
+//   id: string;
+//   tipo: 'necesito' | 'ofrezco' | 'regalo';  // ← agregar esto
+//   titulo: string;
+//   descripcion: string;
+//   categoria: string;
+//   ubicacion: {
+//     latitude: number;
+//     longitude: number;
+//   };
+//   estado: 'abierto' | 'en_proceso' | 'cerrado';
+//   creadoEn: string;
+//   distancia?: number;
+// }
 
+const getPinColor = (tipo: string) => {
+  switch (tipo) {
+    case 'necesito': return '#fb923c';
+    case 'ofrezco':  return '#22c55e';
+    case 'regalo':   return '#3b82f6';
+    default:         return '#fb923c';
+  }
+};
 export default function MainScreen() {
   const bottomSheetRef = useRef<BottomSheet>(null);
   const snapPoints = useMemo(() => ['20%', '45%', '85%'], []);
-
+  const [activeCategory, setActiveCategory] = useState('todos');
   // --- INICIALIZAMOS LA NAVEGACIÓN ---
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
@@ -51,29 +64,33 @@ export default function MainScreen() {
   const [miUbicacion] = useState({ latitude: 48.1147, longitude: 14.5661 });
   const [busqueda, setBusqueda] = useState(''); 
 
-  const favoresProcesados = useMemo(() => {
-    const textoBusqueda = busqueda.toLowerCase();
-    const filtrados = mockFavores.filter((favor) => 
+ const favoresProcesados = useMemo(() => {
+  const textoBusqueda = busqueda.toLowerCase();
+  const filtrados = mockFavores.filter((favor) => {
+    const matchCategoria = activeCategory === 'todos' || 
+      favor.categoria.toLowerCase() === activeCategory.toLowerCase();
+    const matchBusqueda =
       favor.titulo.toLowerCase().includes(textoBusqueda) || 
-      favor.categoria.toLowerCase().includes(textoBusqueda)
+      favor.categoria.toLowerCase().includes(textoBusqueda);
+    return matchCategoria && matchBusqueda;
+  });
+
+  const conDistancias = filtrados.map((favor) => {
+    const distancia = getDistanciaEnKm(
+      miUbicacion.latitude,
+      miUbicacion.longitude,
+      favor.ubicacion.latitude,
+      favor.ubicacion.longitude
     );
+    return { ...favor, distancia };
+  });
 
-    const conDistancias = filtrados.map((favor) => {
-      const distancia = getDistanciaEnKm(
-        miUbicacion.latitude,
-        miUbicacion.longitude,
-        favor.ubicacion.latitude,
-        favor.ubicacion.longitude
-      );
-      return { ...favor, distancia };
-    });
-
-    return conDistancias.sort((a, b) => {
-      if (a.categoria < b.categoria) return -1;
-      if (a.categoria > b.categoria) return 1;
-      return (a.distancia || 0) - (b.distancia || 0);
-    });
-  }, [miUbicacion, busqueda]);
+  return conDistancias.sort((a, b) => {
+    if (a.categoria < b.categoria) return -1;
+    if (a.categoria > b.categoria) return 1;
+    return (a.distancia || 0) - (b.distancia || 0);
+  });
+}, [miUbicacion, busqueda, activeCategory]); // ← activeCategory agregado
 
   const formatearDistancia = (distKm?: number) => {
     if (distKm === undefined) return '';
@@ -93,7 +110,7 @@ export default function MainScreen() {
         }}
         showsUserLocation={true}
       >
-        {favoresProcesados.map((favor: Favor) => (
+       {(favoresProcesados as Favor[]).map((favor) => (
           <Marker 
             key={favor.id} 
             coordinate={{ 
@@ -102,19 +119,21 @@ export default function MainScreen() {
             }}
             title={favor.titulo}
             description={favor.descripcion}
-            pinColor="#fb923c"
+       pinColor={getPinColor(favor.tipo) as any}
           />
         ))}
       </MapView>
 
       <NavBar busqueda={busqueda} setBusqueda={setBusqueda} />
       {/* EL BURGER MENU FLOTANTE */}
-      <BurgerMenu />
+      <BurgerMenu isFloating={true} />
 
       <BottomSheet 
         ref={bottomSheetRef} 
         index={1} 
         snapPoints={snapPoints}
+        activeOffsetY={[-10, 10]}     // solo activa el sheet con gestos verticales
+        failOffsetX={[-15, 15]}  
         backgroundStyle={styles.bottomSheetBackground}
         handleIndicatorStyle={styles.handleIndicator}
         keyboardBehavior="extend" 
@@ -129,6 +148,15 @@ export default function MainScreen() {
             {favoresProcesados.length} {favoresProcesados.length === 1 ? 'favor encontrado' : 'favores encontrados'}
           </Text>
         </View>
+
+        <CategoryPills 
+        selectedCategory={activeCategory} 
+        onSelectCategory={(categoryId) => {
+          setActiveCategory(categoryId);
+          // Aquí más adelante llamaremos a la función para filtrar el mapa
+           
+        }} 
+      />
 
         <BottomSheetFlatList
           data={favoresProcesados as Favor[]} 
