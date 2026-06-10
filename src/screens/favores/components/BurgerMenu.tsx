@@ -53,7 +53,7 @@ export default function BurgerMenu({ isFloating = false }: BurgerMenuProps) {
       <TouchableOpacity 
         style={[
           styles.burgerButton, 
-          isFloating ? [styles.floatingButton, { top: Math.max(insets.top, 16) }] : styles.relativeButton
+          isFloating ? [styles.floatingButton, { top: Math.max(insets.top - 10, 8) }] : styles.relativeButton
         ]}
         onPress={() => setModalVisible(true)}
         activeOpacity={0.8}
@@ -120,7 +120,8 @@ const styles = StyleSheet.create({
   floatingButton: {
     position: 'absolute',
     right: 16,
-    zIndex: 999,
+    zIndex: 1000,
+    
   },
   // Configuración limpia cuando está dentro de un Header con Flexbox (PedirFavorScreen)
   relativeButton: {

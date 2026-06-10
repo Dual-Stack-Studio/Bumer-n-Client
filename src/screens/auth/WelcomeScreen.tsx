@@ -12,7 +12,7 @@ export default function WelcomeScreen({ navigation }: any) {
           style={styles.primaryButton}
           onPress={() => navigation.navigate('Main')}
         >
-          <Text style={styles.buttonText}>Necesito un favor</Text>
+          <Text style={styles.buttonText}>Quiero un favor</Text>
         </TouchableOpacity>
 
         <TouchableOpacity 

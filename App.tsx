@@ -7,11 +7,11 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 
 // Importaciones de tus pantallas
-import WelcomeScreen from './src/screens/WelcomeScreen';
-import MainScreen from './src/screens/Necesito-Favores/MainScreenFavores';
-import DetailScreen from './src/screens/Necesito-Favores/DetailScreen';
-import LoginScreen from './src/screens/LoginScreen'; 
-import PedirFavorScreen from './src/screens/Necesito-Favores/PedirFavorScreen';
+import WelcomeScreen from './src/screens/auth/WelcomeScreen';
+import MainScreen from './src/screens/favores/MainScreenFavores';
+import DetailScreen from './src/screens/favores/DetailScreen';
+import LoginScreen from './src/screens/auth/LoginScreen'; 
+import PedirFavorScreen from './src/screens/favores/flujo-pedir/PedirFavorScreen';
 
 export type RootStackParamList = {
   Welcome: undefined;
