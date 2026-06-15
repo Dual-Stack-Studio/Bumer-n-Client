@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, TouchableOpacity, Modal, TouchableWithoutFeedba
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { useLanguage } from '../../../context/LanguageContext';
+import type { Language } from '../../../i18n/translations';
 
 interface BurgerMenuProps {
   isFloating?: boolean; // Permite alternar si flota sobre el mapa o se integra en un Header
@@ -12,6 +14,13 @@ export default function BurgerMenu({ isFloating = false }: BurgerMenuProps) {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const [modalVisible, setModalVisible] = useState(false);
+  const { language, setLanguage, t } = useLanguage();
+
+  const LANGUAGE_OPTIONS: { code: Language; label: string; flag: string }[] = [
+    { code: 'es', label: t.language.spanish, flag: '🇪🇸' },
+    { code: 'en', label: t.language.english, flag: '🇬🇧' },
+    { code: 'de', label: t.language.german, flag: '🇩🇪' },
+  ];
 
  const handleLogout = async () => {
     try {
@@ -25,8 +34,8 @@ export default function BurgerMenu({ isFloating = false }: BurgerMenuProps) {
       }
       
       setModalVisible(false);
-      Alert.alert('Sesión cerrada', 'Has salido de tu cuenta correctamente.');
-      
+      Alert.alert(t.burgerMenu.logoutSuccessTitle, t.burgerMenu.logoutSuccessMessage);
+
       // Usamos goBack de manera segura para volver al mapa de fondo
       if (navigation.canGoBack()) {
         navigation.goBack();
@@ -35,7 +44,10 @@ export default function BurgerMenu({ isFloating = false }: BurgerMenuProps) {
       }
     } catch (error: any) {
       console.error('Error al cerrar sesión:', error);
-      Alert.alert('Error', `No se pudo cerrar la sesión: ${error.message}`);
+      Alert.alert(
+        t.burgerMenu.logoutErrorTitle,
+        t.burgerMenu.logoutErrorMessage.replace('{{message}}', error.message)
+      );
     }
   };
 
@@ -50,17 +62,19 @@ export default function BurgerMenu({ isFloating = false }: BurgerMenuProps) {
   return (
     <>
       {/* BOTÓN BURGER (Flotante o relativo según la pantalla) */}
-      <TouchableOpacity 
+      <TouchableOpacity
         style={[
-          styles.burgerButton, 
+          styles.burgerButton,
           isFloating ? [styles.floatingButton, { top: Math.max(insets.top - 10, 8) }] : styles.relativeButton
         ]}
         onPress={() => setModalVisible(true)}
-        activeOpacity={0.8}
+        activeOpacity={0.85}
       >
-        <View style={styles.burgerLine} />
-        <View style={styles.burgerLine} />
-        <View style={styles.burgerLine} />
+        <View style={styles.dotsRow}>
+          <View style={[styles.dot, styles.dotSmall]} />
+          <View style={[styles.dot, styles.dotLarge]} />
+          <View style={[styles.dot, styles.dotSmall]} />
+        </View>
       </TouchableOpacity>
 
       {/* MODAL DESPLEGABLE LATERAL (OVERLAY) */}
@@ -75,22 +89,56 @@ export default function BurgerMenu({ isFloating = false }: BurgerMenuProps) {
           <View style={styles.overlay}>
             <TouchableWithoutFeedback>
               <View style={[styles.menuContainer, { paddingTop: Math.max(insets.top, 20) }]}>
-                
+
                 {/* Info superior del menú */}
-                <Text style={styles.menuTitle}>Mi Comunidad</Text>
+                <View style={styles.menuHeader}>
+                  <View style={styles.menuAvatar}>
+                    <Text style={styles.menuAvatarIcon}>🪃</Text>
+                  </View>
+                  <Text style={styles.menuTitle}>{t.common.appName}</Text>
+                </View>
                 <View style={styles.divider} />
 
                 {/* Opción: Volver al Mapa usando la función defensiva corregida */}
-                <TouchableOpacity 
-                  style={styles.menuItem} 
+                <TouchableOpacity
+                  style={styles.menuItem}
                   onPress={handleVolverAlMapa}
+                  activeOpacity={0.7}
                 >
-                  <Text style={styles.menuItemText}>🗺️ Ver el Mapa</Text>
+                  <Text style={styles.menuItemIcon}>🗺️</Text>
+                  <Text style={styles.menuItemText}>{t.burgerMenu.viewMap}</Text>
                 </TouchableOpacity>
 
+                {/* SELECTOR DE IDIOMA */}
+                <Text style={styles.sectionLabel}>{t.language.title}</Text>
+                <View style={styles.languageRow}>
+                  {LANGUAGE_OPTIONS.map((option) => (
+                    <TouchableOpacity
+                      key={option.code}
+                      style={[
+                        styles.languageOption,
+                        language === option.code && styles.languageOptionActive,
+                      ]}
+                      onPress={() => setLanguage(option.code)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.languageFlag}>{option.flag}</Text>
+                      <Text
+                        style={[
+                          styles.languageLabel,
+                          language === option.code && styles.languageLabelActive,
+                        ]}
+                      >
+                        {option.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
                 {/* BOTÓN DE LOGOUT (Empujado al fondo) */}
-                <TouchableOpacity style={[styles.menuItem, styles.logoutItem]} onPress={handleLogout}>
-                  <Text style={[styles.menuItemText, styles.logoutText]}>🚪 Cerrar Sesión</Text>
+                <TouchableOpacity style={[styles.menuItem, styles.logoutItem]} onPress={handleLogout} activeOpacity={0.7}>
+                  <Text style={styles.menuItemIcon}>🚪</Text>
+                  <Text style={[styles.menuItemText, styles.logoutText]}>{t.burgerMenu.logout}</Text>
                 </TouchableOpacity>
 
               </View>
@@ -104,45 +152,56 @@ export default function BurgerMenu({ isFloating = false }: BurgerMenuProps) {
 
 const styles = StyleSheet.create({
   burgerButton: {
-    backgroundColor: '#ffffff',
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    backgroundColor: '#f97362',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 5,
+    shadowColor: '#f97362',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 6,
   },
   // Configuración cuando flota encima del mapa (MainScreen)
   floatingButton: {
     position: 'absolute',
     right: 16,
     zIndex: 1000,
-    
+
   },
   // Configuración limpia cuando está dentro de un Header con Flexbox (PedirFavorScreen)
   relativeButton: {
     position: 'relative',
   },
-  burgerLine: {
-    width: 20,
-    height: 2.5,
-    backgroundColor: '#1e293b',
-    borderRadius: 2,
-    marginVertical: 2,
+  dotsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  dot: {
+    backgroundColor: '#ffffff',
+    borderRadius: 6,
+  },
+  dotSmall: {
+    width: 6,
+    height: 6,
+  },
+  dotLarge: {
+    width: 6,
+    height: 14,
+    borderRadius: 3,
   },
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.4)',
+    backgroundColor: 'rgba(30, 41, 59, 0.35)',
     justifyContent: 'flex-start',
-    alignItems: 'flex-end', 
+    alignItems: 'flex-end',
   },
   menuContainer: {
     backgroundColor: '#ffffff',
-    width: '65%', 
+    width: '65%',
     height: '100%',
     paddingHorizontal: 20,
     shadowColor: '#000',
@@ -151,36 +210,100 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 10,
   },
+  menuHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 16,
+    gap: 12,
+  },
+  menuAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#fde0d6',
+    borderWidth: 1,
+    borderColor: '#fcc9bb',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  menuAvatarIcon: {
+    fontSize: 20,
+  },
   menuTitle: {
     fontSize: 18,
     fontWeight: '800',
     color: '#0f172a',
-    marginVertical: 16,
   },
   divider: {
     height: 1,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#fde0d6',
     marginBottom: 20,
   },
   menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
     paddingVertical: 14,
-    borderRadius: 8,
+    paddingHorizontal: 12,
+    borderRadius: 12,
     marginBottom: 8,
+    backgroundColor: '#fef3ec',
+  },
+  menuItemIcon: {
+    fontSize: 18,
   },
   menuItemText: {
     fontSize: 15,
     fontWeight: '600',
     color: '#334155',
   },
+  sectionLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#94a3b8',
+    textTransform: 'uppercase',
+    marginBottom: 8,
+    marginTop: 4,
+  },
+  languageRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 8,
+  },
+  languageOption: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: '#fef3ec',
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  languageOptionActive: {
+    backgroundColor: '#fde0d6',
+    borderColor: '#f97362',
+  },
+  languageFlag: {
+    fontSize: 20,
+    marginBottom: 4,
+  },
+  languageLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#334155',
+  },
+  languageLabelActive: {
+    color: '#f97362',
+  },
   logoutItem: {
-    marginTop: 'auto', 
+    marginTop: 'auto',
     marginBottom: 40,
-    borderTopWidth: 1,
-    borderColor: '#f1f5f9',
-    paddingTop: 20,
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fecaca',
   },
   logoutText: {
-    color: '#ef4444', 
+    color: '#ef4444',
     fontWeight: '700',
   },
 });

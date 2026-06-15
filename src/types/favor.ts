@@ -10,5 +10,8 @@ export interface Favor {
   };
   estado: 'abierto' | 'en_proceso' | 'cerrado';
   creadoEn: string;
+  expiraEn?: string;
   distancia?: number;
+  telefonoContacto?: string;
+  userId?: string;
 }

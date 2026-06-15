@@ -1,55 +1,77 @@
 import "./global.css";
-import React, { useEffect } from 'react'; // <-- 1. Importa useEffect aquí
-import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { SafeAreaProvider } from 'react-native-safe-area-context'; 
+import React, { useEffect } from "react"; // <-- 1. Importa useEffect aquí
+import { NavigationContainer } from "@react-navigation/native";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { GoogleSignin } from "@react-native-google-signin/google-signin";
 
 // Importaciones de tus pantallas
-import WelcomeScreen from './src/screens/auth/WelcomeScreen';
-import MainScreen from './src/screens/favores/MainScreenFavores';
-import DetailScreen from './src/screens/favores/DetailScreen';
-import LoginScreen from './src/screens/auth/LoginScreen'; 
-import PedirFavorScreen from './src/screens/favores/flujo-pedir/PedirFavorScreen';
+import WelcomeScreen from "./src/screens/auth/WelcomeScreen";
+import MainScreen from "./src/screens/favores/MainScreenFavores";
+import DetailScreen from "./src/screens/favores/DetailScreen";
+import LoginScreen from "./src/screens/auth/LoginScreen";
+import PedirFavorScreen from "./src/screens/favores/flujo-pedir/PedirFavorScreen";
+import ProfileScreen from "./src/screens/profile/ProfileScreen";
+import FavoritosScreen from "./src/screens/favoritos/FavoritosScreen";
+import NotificationsScreen from "./src/screens/notifications/NotificationsScreen";
+import { FavoritosProvider } from "./src/context/FavoritosContext";
+import { LanguageProvider } from "./src/context/LanguageContext";
+import { AuthProvider } from "./src/context/AuthContext";
 
 export type RootStackParamList = {
   Welcome: undefined;
-  Main: undefined;
-  Detail: { favor: any }; 
-  Login: undefined;  
-  RequestFavor: undefined;
+  Main: { intencion?: "necesito" | "ofrezco" } | undefined;
+  Detail: { favor: any };
+  Login: undefined;
+  RequestFavor: { favorEditar?: any } | undefined;
+  Profile: undefined;
+  Favoritos: undefined;
+  Notifications: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function App() {
-
   // 2. LO MOVEMOS AQUÍ ADENTRO: Se ejecuta solo una vez cuando la app ya está montada y lista
   useEffect(() => {
     GoogleSignin.configure({
-      webClientId: '51752012600-02jg5en0mi2g4pito7hjdinvg48a47ne.apps.googleusercontent.com',
+      webClientId:
+        "51752012600-02jg5en0mi2g4pito7hjdinvg48a47ne.apps.googleusercontent.com",
+
       offlineAccess: true,
     });
   }, []);
 
   return (
     <SafeAreaProvider>
-      <NavigationContainer>
-        <Stack.Navigator 
-          initialRouteName="Welcome" 
-          screenOptions={{ headerShown: false }}
-        >
-          <Stack.Screen name="Welcome" component={WelcomeScreen} />
-          <Stack.Screen name="Main" component={MainScreen} />
-          <Stack.Screen name="Detail" component={DetailScreen} />
-          <Stack.Screen name="RequestFavor" component={PedirFavorScreen} />
-          
-          <Stack.Group screenOptions={{ presentation: 'modal' }}>
-            <Stack.Screen name="Login" component={LoginScreen} />
-          </Stack.Group>
-        </Stack.Navigator>
-      </NavigationContainer>
+      <LanguageProvider>
+      <AuthProvider>
+      <FavoritosProvider>
+        <NavigationContainer>
+          <Stack.Navigator
+            initialRouteName="Welcome"
+            screenOptions={{ headerShown: false }}
+          >
+            <Stack.Screen name="Welcome" component={WelcomeScreen} />
+            <Stack.Screen name="Main" component={MainScreen} />
+            <Stack.Screen name="Detail" component={DetailScreen} />
+            <Stack.Screen name="RequestFavor" component={PedirFavorScreen} />
+            <Stack.Screen name="Profile" component={ProfileScreen} />
+            <Stack.Screen name="Favoritos" component={FavoritosScreen} />
+            <Stack.Screen
+              name="Notifications"
+              component={NotificationsScreen}
+            />
+
+            <Stack.Group screenOptions={{ presentation: "modal" }}>
+              <Stack.Screen name="Login" component={LoginScreen} />
+            </Stack.Group>
+          </Stack.Navigator>
+        </NavigationContainer>
+      </FavoritosProvider>
+      </AuthProvider>
+      </LanguageProvider>
     </SafeAreaProvider>
   );
 }

@@ -3,10 +3,15 @@ import { View, Text, StyleSheet, TouchableOpacity, Image, Platform } from 'react
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // Importamos la librería nativa de inicio de sesión
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { useLanguage } from '../../context/LanguageContext';
+import { useAuth } from '../../context/AuthContext';
+import { formatMessage } from '../../i18n/format';
 
 // 1. Añadimos 'route' para poder recibir los parámetros de navegación
 export default function LoginScreen({ navigation, route }: any) {
   const insets = useSafeAreaInsets();
+  const { t } = useLanguage();
+  const { sincronizar } = useAuth();
 
   // 2. Extraemos el destino si es que venimos redirigidos (ej. desde el botón "Pedir")
   const { redirectTo } = route?.params || {};
@@ -21,10 +26,16 @@ export default function LoginScreen({ navigation, route }: any) {
       
       // Extraemos el usuario accediendo de forma segura a response.data
       const nombreUsuario = response.data?.user?.name;
-      
-      alert(`¡Hola, ${nombreUsuario || 'Vecino'}! Login exitoso.`);
+
+      alert(formatMessage(t.login.greeting, { name: nombreUsuario || t.login.defaultName }));
       console.log('Usuario de Google detectado:', response.data);
-      
+
+      // Sincronizamos con el backend para tener un userId propio
+      if (response.data) {
+        await sincronizar(response.data);
+      }
+
+
       // 4. LÓGICA DE REDIRECCIÓN INTELIGENTE
       if (redirectTo) {
         // Si veníamos de intentar una acción bloqueada, lo mandamos directo allá
@@ -35,7 +46,7 @@ export default function LoginScreen({ navigation, route }: any) {
       }
 
     } catch (error: any) {
-      alert("Error de Google: " + error.message);
+      alert(t.login.googleErrorPrefix + error.message);
       console.log("Error detallado:", JSON.stringify(error));
     }
   };
@@ -57,9 +68,9 @@ export default function LoginScreen({ navigation, route }: any) {
           <Text style={styles.mainIcon}>🤝</Text>
         </View>
 
-        <Text style={styles.title}>Únete a la comunidad</Text>
+        <Text style={styles.title}>{t.login.title}</Text>
         <Text style={styles.subtitle}>
-          Inicia sesión para pedir ayuda, ofrecer favores y conectarte con tus vecinos.
+          {t.login.subtitle}
         </Text>
 
         {/* Botón de Google conectado */}
@@ -72,20 +83,20 @@ export default function LoginScreen({ navigation, route }: any) {
             source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg' }} 
             style={styles.googleIcon} 
           />
-          <Text style={styles.googleButtonText}>Continuar con Google</Text>
+          <Text style={styles.googleButtonText}>{t.login.continueGoogle}</Text>
         </TouchableOpacity>
 
         {/* Botón alternativo (Apple / Email) por si acaso */}
         {Platform.OS === 'ios' && (
           <TouchableOpacity style={styles.appleButton} activeOpacity={0.8}>
             <Text style={styles.appleIcon}></Text>
-            <Text style={styles.appleButtonText}>Continuar con Apple</Text>
+            <Text style={styles.appleButtonText}>{t.login.continueApple}</Text>
           </TouchableOpacity>
         )}
 
         {/* Recordatorio de privacidad o términos */}
         <Text style={styles.footerText}>
-          Al continuar, aceptas nuestros Términos de Servicio y Política de Privacidad.
+          {t.login.terms}
         </Text>
       </View>
 
@@ -116,7 +127,7 @@ const styles = StyleSheet.create({
     paddingBottom: 60,
   },
   iconContainer: {
-    backgroundColor: '#ccfbf1',
+    backgroundColor: '#fef3c7',
     width: 80,
     height: 80,
     borderRadius: 40,

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -6,31 +6,38 @@ import {
   Image,
   TouchableOpacity,
   ScrollView,
+  Linking,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { RootStackParamList } from "../../../App";
 import { Favor } from "../../types/favor";
+import { getEstadoBadge, getTiempoRestante, getWhatsappUrl } from "../../utils/favorHelpers";
+import SafetyModal from "./components/SafetyModal";
+import { useFavoritos } from "../../context/FavoritosContext";
+import { useLanguage } from "../../context/LanguageContext";
+import { formatMessage } from "../../i18n/format";
+import type { Translation } from "../../i18n/translations";
 
-const getBotonTexto = (tipo: Favor["tipo"]) => {
+const getBotonTexto = (tipo: Favor["tipo"], t: Translation) => {
   switch (tipo) {
     case "necesito":
-      return "Ofrecer ayuda";
+      return t.detail.offerHelp;
     case "ofrezco":
-      return "Solicitar esto";
+      return t.detail.requestThis;
     case "regalo":
-      return "Me interesa";
+      return t.detail.imInterested;
   }
 };
 
-const getTipoBadge = (tipo: Favor["tipo"]) => {
+const getTipoBadge = (tipo: Favor["tipo"], t: Translation) => {
   switch (tipo) {
     case "necesito":
-      return { label: "Necesito", bg: "#fff7ed", text: "#c2410c" };
+      return { label: t.detail.badgeNecesito, bg: "#fff7ed", text: "#c2410c" };
     case "ofrezco":
-      return { label: "Ofrezco", bg: "#f0fdf4", text: "#15803d" };
+      return { label: t.detail.badgeOfrezco, bg: "#f0fdf4", text: "#15803d" };
     case "regalo":
-      return { label: "Regalo", bg: "#eff6ff", text: "#1d4ed8" };
+      return { label: t.detail.badgeRegalo, bg: "#eff6ff", text: "#1d4ed8" };
   }
 };
 
@@ -39,8 +46,12 @@ export default function DetailScreen() {
   const navigation = useNavigation();
   const route = useRoute<RouteProp<RootStackParamList, "Detail">>();
   const { favor } = route.params;
+  const [showSafety, setShowSafety] = useState(false);
+  const { esFavorito, toggleFavorito } = useFavoritos();
+  const { t } = useLanguage();
 
-  const badge = getTipoBadge(favor.tipo);
+  const badge = getTipoBadge(favor.tipo, t);
+  const estadoBadge = getEstadoBadge(favor, t);
   const imagenPlaceholder =
     "https://images.unsplash.com/photo-1504148455328-c376907d081c?q=80&w=800&auto=format&fit=crop";
   const formatearFecha = (fechaISO: string) => {
@@ -49,9 +60,9 @@ export default function DetailScreen() {
     const diffMs = ahora.getTime() - fecha.getTime();
     const diffDias = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-    if (diffDias === 0) return "Publicado hoy";
-    if (diffDias === 1) return "Publicado ayer";
-    return `Publicado hace ${diffDias} días`;
+    if (diffDias === 0) return t.detail.publishedToday;
+    if (diffDias === 1) return t.detail.publishedYesterday;
+    return formatMessage(t.detail.publishedDaysAgo, { days: diffDias });
   };
   return (
     <View style={styles.container}>
@@ -63,17 +74,30 @@ export default function DetailScreen() {
         >
           <Text style={styles.backIcon}>⬅️</Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.favoritoButton, { top: Math.max(insets.top, 20) }]}
+          onPress={() => toggleFavorito(favor.id)}
+        >
+          <Text style={styles.backIcon}>{esFavorito(favor.id) ? '❤️' : '🤍'}</Text>
+        </TouchableOpacity>
       </View>
 
       <ScrollView
         style={styles.contentContainer}
         showsVerticalScrollIndicator={false}
       >
-        {/* BADGE DE TIPO */}
-        <View style={[styles.tipoBadge, { backgroundColor: badge.bg }]}>
-          <Text style={[styles.tipoText, { color: badge.text }]}>
-            {badge.label}
-          </Text>
+        {/* BADGES DE TIPO Y ESTADO */}
+        <View style={styles.badgesRow}>
+          <View style={[styles.tipoBadge, { backgroundColor: badge.bg }]}>
+            <Text style={[styles.tipoText, { color: badge.text }]}>
+              {badge.label}
+            </Text>
+          </View>
+          <View style={[styles.tipoBadge, { backgroundColor: estadoBadge.bg }]}>
+            <Text style={[styles.tipoText, { color: estadoBadge.text }]}>
+              {estadoBadge.label}
+            </Text>
+          </View>
         </View>
 
         <View style={styles.headerRow}>
@@ -87,27 +111,46 @@ export default function DetailScreen() {
           <Text style={styles.locationIcon}>📍</Text>
           <Text style={styles.locationText}>
             {favor.distancia
-              ? `A ${favor.distancia < 1 ? Math.round(favor.distancia * 1000) + " m" : favor.distancia.toFixed(1) + " km"} de ti`
-              : "Ubicación oculta"}
+              ? formatMessage(t.detail.distanceFromYou, {
+                  distance: favor.distancia < 1 ? Math.round(favor.distancia * 1000) + " m" : favor.distancia.toFixed(1) + " km",
+                })
+              : t.detail.hiddenLocation}
           </Text>
         </View>
-        <Text style={styles.fechaText}>
-          🕐 {formatearFecha(favor.creadoEn)}
-        </Text>
+        <View style={styles.fechaRow}>
+          <Text style={styles.fechaText}>
+            🕐 {formatearFecha(favor.creadoEn)}
+          </Text>
+          <Text style={styles.fechaText}>
+            ⏳ {getTiempoRestante(favor, t)}
+          </Text>
+        </View>
 
-        <Text style={styles.sectionTitle}>Detalles</Text>
+        <Text style={styles.sectionTitle}>{t.detail.details}</Text>
         <Text style={styles.description}>{favor.descripcion}</Text>
       </ScrollView>
 
       <View
         style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 20) }]}
       >
-        <TouchableOpacity style={styles.primaryButton}>
+        <TouchableOpacity
+          style={styles.primaryButton}
+          onPress={() => setShowSafety(true)}
+        >
           <Text style={styles.primaryButtonText}>
-            {getBotonTexto(favor.tipo)}
+            {getBotonTexto(favor.tipo, t)}
           </Text>
         </TouchableOpacity>
       </View>
+
+      <SafetyModal
+        visible={showSafety}
+        onClose={() => setShowSafety(false)}
+        onContinue={() => {
+          setShowSafety(false);
+          Linking.openURL(getWhatsappUrl(favor));
+        }}
+      />
     </View>
   );
 }
@@ -146,6 +189,21 @@ const styles = StyleSheet.create({
     fontSize: 18,
     marginLeft: -2,
   },
+  favoritoButton: {
+    position: "absolute",
+    right: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 5,
+  },
   contentContainer: {
     flex: 1,
     backgroundColor: "#ffffff",
@@ -155,12 +213,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 30,
   },
+  badgesRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 8,
+  },
   tipoBadge: {
     alignSelf: "flex-start",
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 12,
-    marginBottom: 8,
   },
   tipoText: {
     fontSize: 12,
@@ -181,14 +243,14 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   categoryBadge: {
-    backgroundColor: "#ccfbf1",
+    backgroundColor: "#fef3c7",
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
   },
   categoryText: {
     fontSize: 12,
-    color: "#0f766e",
+    color: "#e11d48",
     fontWeight: "800",
     textTransform: "uppercase",
   },
@@ -229,11 +291,11 @@ const styles = StyleSheet.create({
     borderColor: "#f1f5f9",
   },
   primaryButton: {
-    backgroundColor: "#0f766e",
+    backgroundColor: "#e11d48",
     paddingVertical: 16,
     borderRadius: 16,
     alignItems: "center",
-    shadowColor: "#0f766e",
+    shadowColor: "#e11d48",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
@@ -244,10 +306,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
   },
+  fechaRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 24,
+  },
   fechaText: {
     fontSize: 13,
     color: "#94a3b8",
     fontWeight: "500",
-    marginBottom: 24,
   },
 });

@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import "dotenv/config";
 
 export default {
   expo: {
@@ -9,52 +9,58 @@ export default {
     icon: "./assets/icon.png",
     // userInterfaceStyle: "light", // COMENTA ESTO hasta que instales expo-system-ui
     newArchEnabled: false,
+    extra: {
+      eas: {
+        projectId: "5d9041e3-1c90-479a-829f-6de1c3039c45",
+      },
+    },
     splash: {
       image: "./assets/splash-icon.png",
       resizeMode: "contain",
-      backgroundColor: "#ffffff"
+      backgroundColor: "#ffffff",
     },
     ios: {
-      supportsTablet: true
+      supportsTablet: true,
     },
     android: {
       adaptiveIcon: {
         foregroundImage: "./assets/adaptive-icon.png",
-        backgroundColor: "#ffffff"
+        backgroundColor: "#ffffff",
       },
       // Elimina la línea edgeToEdgeEnabled: true, (Ya no es necesaria)
       config: {
         googleMaps: {
-          apiKey: process.env.GOOGLE_MAPS_API_KEY
-        }
+          apiKey: process.env.GOOGLE_MAPS_API_KEY,
+        },
       },
       permissions: [
         "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION"
+        "android.permission.ACCESS_FINE_LOCATION",
       ],
-      package: "com.sebita1495.client"
+      package: "com.sebita1495.client",
     },
     web: {
-      favicon: "./assets/favicon.png"
+      favicon: "./assets/favicon.png",
     },
     plugins: [
       [
         "expo-location",
         {
-          locationAlwaysPermission: "Necesitamos tu ubicación para mostrarte favores cercanos."
-        }
+          locationAlwaysPermission:
+            "Necesitamos tu ubicación para mostrarte favores cercanos.",
+        },
       ],
       [
         "expo-build-properties",
         {
           ios: {
-            useFrameworks: "static"
-          }
-        }
+            useFrameworks: "static",
+          },
+        },
       ],
       "@react-native-google-signin/google-signin",
-      "expo-status-bar"
+      "expo-status-bar",
+      "expo-localization",
     ],
-    
-  }
+  },
 };

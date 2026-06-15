@@ -1,15 +1,7 @@
 import React from 'react';
 import { ScrollView, Text, TouchableOpacity, StyleSheet, View } from 'react-native';
-
-// Lista de categorías (luego esto puede venir del backend de Lourdes)
-const CATEGORIES = [
-  { id: 'todos', label: 'Todos', icon: '🌍' },
-  { id: 'reparaciones', label: 'Reparaciones', icon: '🛠️' },
-  { id: 'mascotas', label: 'Mascotas', icon: '🐕' },
-  { id: 'tramites', label: 'Trámites', icon: '⚖️' },
-  { id: 'mudanza', label: 'Mudanza', icon: '📦' },
-  { id: 'regalos', label: 'Regalos', icon: '🎁' },
-];
+import { CATEGORIAS } from '../../../data/categories';
+import { useLanguage } from '../../../context/LanguageContext';
 
 interface CategoryPillsProps {
   selectedCategory: string;
@@ -17,6 +9,11 @@ interface CategoryPillsProps {
 }
 
 export default function CategoryPills({ selectedCategory, onSelectCategory }: CategoryPillsProps) {
+  const { t } = useLanguage();
+
+  // "Todos" + la lista centralizada de categorías (compartida con el formulario de creación)
+  const CATEGORIES = [{ id: 'todos', label: t.categoryPills.all, icon: '🌍' }, ...CATEGORIAS];
+
   return (
     <View style={styles.container}>
    <ScrollView 
@@ -37,7 +34,7 @@ export default function CategoryPills({ selectedCategory, onSelectCategory }: Ca
               activeOpacity={0.7}
             >
               <Text style={[styles.pillText, isActive && styles.pillTextActive]}>
-                {category.icon} {category.label}
+                {category.icon} {t.categories[category.id as keyof typeof t.categories] ?? category.label}
               </Text>
             </TouchableOpacity>
           );
@@ -68,8 +65,8 @@ const styles = StyleSheet.create({
     borderColor: '#E0E0E0',
   },
   pillActive: {
-    backgroundColor: '#007BFF', // Azul vibrante para la activa
-    borderColor: '#007BFF',
+    backgroundColor: '#f97362',
+    borderColor: '#f97362',
   },
   pillText: {
     fontSize: 14,
