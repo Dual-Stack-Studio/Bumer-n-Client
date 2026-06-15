@@ -10,48 +10,91 @@ import {
   Platform 
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRoute, RouteProp } from '@react-navigation/native';
+import { RootStackParamList } from '../../../../App';
 
 // Importamos tu nuevo menú de hamburguesa con opción de logout
-import BurgerMenu from '../components/BurgerMenu'; 
-
-// Lista de categorías disponibles
-const CATEGORIAS = ['Herramientas', 'Transporte', 'Mascotas', 'Jardinería', 'Otros'];
+import BurgerMenu from '../components/BurgerMenu';
+import { actualizarFavor, crearFavor } from '../../../api/favoresApi';
+import { CATEGORIAS } from '../../../data/categories';
+import { getOpcionesExpiracion } from '../../../utils/favorHelpers';
+import { Favor } from '../../../types/favor';
+import { useAuth } from '../../../context/AuthContext';
+import { useLanguage } from '../../../context/LanguageContext';
+import { formatMessage } from '../../../i18n/format';
 
 export default function PedirFavorScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
+  const route = useRoute<RouteProp<RootStackParamList, 'RequestFavor'>>();
+  const favorEditar = route.params?.favorEditar as Favor | undefined;
+  const esEdicion = !!favorEditar;
+  const { t } = useLanguage();
+  const { usuarioId } = useAuth();
+
+  // Tipos de publicación disponibles
+  const TIPOS_PUBLICACION: { id: Favor['tipo']; label: string; icon: string }[] = [
+    { id: 'necesito', label: t.pedirFavor.tipoNecesito, icon: '🙋' },
+    { id: 'ofrezco', label: t.pedirFavor.tipoOfrezco, icon: '🤝' },
+    { id: 'regalo', label: t.pedirFavor.tipoRegalo, icon: '🎁' },
+  ];
+  const OPCIONES_EXPIRACION = getOpcionesExpiracion(t);
 
   // Estados del formulario
-  const [titulo, setTitulo] = useState('');
-  const [descripcion, setDescripcion] = useState('');
-  const [categoriaSeleccionada, setCategoriaSeleccionada] = useState('Herramientas');
+  const [tipoSeleccionado, setTipoSeleccionado] = useState<Favor['tipo']>(favorEditar?.tipo ?? 'necesito');
+  const [titulo, setTitulo] = useState(favorEditar?.titulo ?? '');
+  const [descripcion, setDescripcion] = useState(favorEditar?.descripcion ?? '');
+  const [categoriaSeleccionada, setCategoriaSeleccionada] = useState(favorEditar?.categoria ?? CATEGORIAS[0].label);
+  const [expiracionSeleccionada, setExpiracionSeleccionada] = useState(OPCIONES_EXPIRACION[2]); // 7 días
+  const [publicando, setPublicando] = useState(false);
 
   // Simulación de la ubicación actual que heredará el favor
   const [ubicacionSimulada] = useState({ latitude: 48.1147, longitude: 14.5661, nombre: "Stadt Haag" });
 
-  const handlePublicar = () => {
+  const handlePublicar = async () => {
     if (!titulo.trim() || !descripcion.trim()) {
-      alert('Por favor, completa el título y la descripción.');
+      alert(t.pedirFavor.alertFillRequired);
       return;
     }
 
-    // Estructura del nuevo favor listo para enviar a tu backend (Node.js + Postgres)
-    const nuevoFavor = {
-      titulo: titulo.trim(),
-      descripcion: descripcion.trim(),
-      categoria: categoriaSeleccionada,
-      ubicacion: {
-        latitude: ubicacionSimulada.latitude,
-        longitude: ubicacionSimulada.longitude
-      },
-      fecha: new Date().toISOString()
-    };
+    setPublicando(true);
+    try {
+      if (esEdicion && favorEditar) {
+        await actualizarFavor(favorEditar.id, {
+          tipo: tipoSeleccionado,
+          titulo: titulo.trim(),
+          descripcion: descripcion.trim(),
+          categoria: categoriaSeleccionada,
+        });
 
-    console.log('Enviando nuevo favor al servidor:', nuevoFavor);
-    
-    alert('¡Tu solicitud de favor ha sido publicada con éxito!');
-    
-    // Regresa a la pantalla principal (Mapa)
-    navigation.navigate('Main');
+        alert(t.pedirFavor.alertUpdated);
+        navigation.navigate('Profile');
+        return;
+      }
+
+      const expiraEn = new Date(Date.now() + expiracionSeleccionada.horas * 60 * 60 * 1000).toISOString();
+
+      await crearFavor({
+        tipo: tipoSeleccionado,
+        titulo: titulo.trim(),
+        descripcion: descripcion.trim(),
+        categoria: categoriaSeleccionada,
+        ubicacion: {
+          latitude: ubicacionSimulada.latitude,
+          longitude: ubicacionSimulada.longitude,
+        },
+        expiraEn,
+        userId: usuarioId ?? undefined,
+      });
+
+      alert(t.pedirFavor.alertCreated);
+
+      // Regresa a la pantalla principal (Mapa)
+      navigation.navigate('Main');
+    } catch (error: any) {
+      alert(formatMessage(t.pedirFavor.alertSaveError, { message: error.message }));
+    } finally {
+      setPublicando(false);
+    }
   };
 
   return (
@@ -65,7 +108,7 @@ export default function PedirFavorScreen({ navigation }: any) {
           <Text style={styles.backIcon}>⬅️</Text>
         </TouchableOpacity>
         
-        <Text style={styles.headerTitle}>Pedir un Favor</Text>
+        <Text style={styles.headerTitle}>{esEdicion ? t.pedirFavor.editTitle : t.pedirFavor.createTitle}</Text>
         
         {/* El BurgerMenu ahora balancea de forma nativa la esquina derecha del header */}
         <BurgerMenu />
@@ -76,14 +119,37 @@ export default function PedirFavorScreen({ navigation }: any) {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.welcomeText}>¿Qué necesitas hoy de tus vecinos?</Text>
+        <Text style={styles.welcomeText}>{t.pedirFavor.welcomeText}</Text>
+
+        {/* SECCIÓN 0: TIPO DE PUBLICACIÓN */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>{t.pedirFavor.whatToDo}</Text>
+          <View style={styles.tiposContainer}>
+            {TIPOS_PUBLICACION.map((tipo) => {
+              const esActivo = tipoSeleccionado === tipo.id;
+              return (
+                <TouchableOpacity
+                  key={tipo.id}
+                  style={[styles.tipoCard, esActivo && styles.tipoCardActivo]}
+                  onPress={() => setTipoSeleccionado(tipo.id)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.tipoIcon}>{tipo.icon}</Text>
+                  <Text style={[styles.tipoLabel, esActivo && styles.tipoLabelActivo]}>
+                    {tipo.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
 
         {/* SECCIÓN 1: TÍTULO */}
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Título de tu solicitud</Text>
+          <Text style={styles.label}>{t.pedirFavor.tituloLabel}</Text>
           <TextInput
             style={styles.input}
-            placeholder="Ej. Préstamo de escalera alta, Transportar un sillón..."
+            placeholder={t.pedirFavor.tituloPlaceholder}
             placeholderTextColor="#94a3b8"
             value={titulo}
             onChangeText={setTitulo}
@@ -93,19 +159,41 @@ export default function PedirFavorScreen({ navigation }: any) {
 
         {/* SECCIÓN 2: CATEGORÍAS */}
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Selecciona una Categoría</Text>
+          <Text style={styles.label}>{t.pedirFavor.categoriaLabel}</Text>
           <View style={styles.categoriesContainer}>
             {CATEGORIAS.map((cat) => {
-              const esActiva = categoriaSeleccionada === cat;
+              const esActiva = categoriaSeleccionada === cat.label;
               return (
                 <TouchableOpacity
-                  key={cat}
+                  key={cat.id}
                   style={[styles.badge, esActiva && styles.badgeActiva]}
-                  onPress={() => setCategoriaSeleccionada(cat)}
+                  onPress={() => setCategoriaSeleccionada(cat.label)}
                   activeOpacity={0.7}
                 >
                   <Text style={[styles.badgeText, esActiva && styles.badgeTextActiva]}>
-                    {cat}
+                    {cat.icon} {t.categories[cat.id as keyof typeof t.categories] ?? cat.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* SECCIÓN 3.5: TIEMPO DE EXPIRACIÓN */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>{t.pedirFavor.expiracionLabel}</Text>
+          <View style={styles.categoriesContainer}>
+            {OPCIONES_EXPIRACION.map((opcion) => {
+              const esActiva = expiracionSeleccionada.label === opcion.label;
+              return (
+                <TouchableOpacity
+                  key={opcion.label}
+                  style={[styles.badge, esActiva && styles.badgeActiva]}
+                  onPress={() => setExpiracionSeleccionada(opcion)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.badgeText, esActiva && styles.badgeTextActiva]}>
+                    {opcion.label}
                   </Text>
                 </TouchableOpacity>
               );
@@ -115,10 +203,10 @@ export default function PedirFavorScreen({ navigation }: any) {
 
         {/* SECCIÓN 3: DESCRIPCIÓN */}
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Explica los detalles</Text>
+          <Text style={styles.label}>{t.pedirFavor.descripcionLabel}</Text>
           <TextInput
             style={[styles.input, styles.textArea]}
-            placeholder="Sé lo más descriptivo posible. ¿Cuándo lo necesitas? ¿Hay algún detalle importante?"
+            placeholder={t.pedirFavor.descripcionPlaceholder}
             placeholderTextColor="#94a3b8"
             multiline
             numberOfLines={4}
@@ -132,8 +220,8 @@ export default function PedirFavorScreen({ navigation }: any) {
         <View style={styles.locationInfoBox}>
           <Text style={styles.locationIcon}>📍</Text>
           <View style={styles.locationTextContainer}>
-            <Text style={styles.locationTitle}>Ubicación de la publicación</Text>
-            <Text style={styles.locationSubtitle}>Se publicará cerca de tu posición actual ({ubicacionSimulada.nombre})</Text>
+            <Text style={styles.locationTitle}>{t.pedirFavor.locationTitle}</Text>
+            <Text style={styles.locationSubtitle}>{formatMessage(t.pedirFavor.locationSubtitle, { place: ubicacionSimulada.nombre })}</Text>
           </View>
         </View>
 
@@ -141,8 +229,19 @@ export default function PedirFavorScreen({ navigation }: any) {
 
       {/* BOTÓN FIJO AL FINAL */}
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
-        <TouchableOpacity style={styles.submitButton} onPress={handlePublicar} activeOpacity={0.8}>
-          <Text style={styles.submitButtonText}>Publicar Solicitud</Text>
+        <TouchableOpacity
+          style={[styles.submitButton, publicando && styles.submitButtonDisabled]}
+          onPress={handlePublicar}
+          activeOpacity={0.8}
+          disabled={publicando}
+        >
+          <Text style={styles.submitButtonText}>
+            {publicando
+              ? t.pedirFavor.saving
+              : esEdicion
+                ? t.pedirFavor.saveChanges
+                : t.pedirFavor.publish}
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -154,6 +253,36 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#ffffff',
+  },
+  tiposContainer: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  tipoCard: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  tipoCardActivo: {
+    backgroundColor: '#fffbeb',
+    borderColor: '#e11d48',
+  },
+  tipoIcon: {
+    fontSize: 24,
+    marginBottom: 6,
+  },
+  tipoLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#64748b',
+    textAlign: 'center',
+  },
+  tipoLabelActivo: {
+    color: '#e11d48',
   },
   header: {
     flexDirection: 'row',
@@ -229,8 +358,8 @@ const styles = StyleSheet.create({
     borderColor: '#e2e8f0',
   },
   badgeActiva: {
-    backgroundColor: '#ccfbf1',
-    borderColor: '#0f766e',
+    backgroundColor: '#fef3c7',
+    borderColor: '#e11d48',
   },
   badgeText: {
     fontSize: 13,
@@ -238,17 +367,17 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   badgeTextActiva: {
-    color: '#0f766e',
+    color: '#e11d48',
     fontWeight: '700',
   },
   locationInfoBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f0fdfa',
+    backgroundColor: '#fffbeb',
     padding: 16,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#ccfbf1',
+    borderColor: '#fef3c7',
     marginTop: 8,
   },
   locationIcon: {
@@ -261,11 +390,11 @@ const styles = StyleSheet.create({
   locationTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#115e59',
+    color: '#92400e',
   },
   locationSubtitle: {
     fontSize: 12,
-    color: '#14b8a6',
+    color: '#d97706',
     marginTop: 2,
   },
   footer: {
@@ -276,11 +405,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
   },
   submitButton: {
-    backgroundColor: '#0f766e',
+    backgroundColor: '#e11d48',
     paddingVertical: 16,
     borderRadius: 16,
     alignItems: 'center',
-    shadowColor: '#0f766e',
+    shadowColor: '#e11d48',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 8,
@@ -290,5 +419,8 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '700',
+  },
+  submitButtonDisabled: {
+    opacity: 0.6,
   },
 });

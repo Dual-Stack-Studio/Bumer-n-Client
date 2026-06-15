@@ -4,11 +4,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 // 1. Importamos GoogleSignin para verificar el estado real
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { useFavoritos } from '../../../context/FavoritosContext';
+import { useLanguage } from '../../../context/LanguageContext';
 
 export default function Footer() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const route = useRoute();
+  const { t } = useLanguage();
+  const { favoritos } = useFavoritos();
+  const tieneFavoritos = favoritos.length > 0;
 
  const handlePressPedir = async () => {
     try {
@@ -31,15 +36,25 @@ export default function Footer() {
     const estaLogueadoReal = GoogleSignin.hasPreviousSignIn();
 
     if (estaLogueadoReal) {
-      // Más adelante aquí navegarás a tu pantalla de Perfil (ej. navigation.navigate('ProfileScreen'))
-      alert('¡Aquí irá tu pantalla de Perfil de usuario!');
+      navigation.navigate('Profile');
     } else {
-      navigation.navigate('Login');
+      navigation.navigate('Login', { redirectTo: 'Profile' });
+    }
+  };
+
+  const handlePressFavoritos = () => {
+    const estaLogueadoReal = GoogleSignin.hasPreviousSignIn();
+
+    if (estaLogueadoReal) {
+      navigation.navigate('Favoritos');
+    } else {
+      navigation.navigate('Login', { redirectTo: 'Favoritos' });
     }
   };
 
   const esExplorarActivo = route.name === 'Main';
   const esPedirActivo = route.name === 'RequestFavor';
+  const esFavoritosActivo = route.name === 'Favoritos';
 
   return (
     <View style={[styles.footerContainer, { paddingBottom: Platform.OS === 'ios' ? insets.bottom : 16 }]}>
@@ -50,7 +65,7 @@ export default function Footer() {
         onPress={() => navigation.navigate('Main')}
       >
         <Text style={styles.icon}>🗺️</Text>
-        <Text style={[styles.label, esExplorarActivo && styles.activeLabel]}>Explorar</Text>
+        <Text style={[styles.label, esExplorarActivo && styles.activeLabel]}>{t.footer.explore}</Text>
       </TouchableOpacity>
 
       {/* 2. BOTÓN PEDIR (Con la validación real en vivo) */}
@@ -59,7 +74,16 @@ export default function Footer() {
         onPress={handlePressPedir}
       >
         <Text style={styles.icon}>➕</Text>
-        <Text style={[styles.label, esPedirActivo && styles.activeLabel]}>Pedir</Text>
+        <Text style={[styles.label, esPedirActivo && styles.activeLabel]}>{t.footer.request}</Text>
+      </TouchableOpacity>
+
+      {/* BOTÓN GUARDADOS */}
+      <TouchableOpacity
+        style={styles.tab}
+        onPress={handlePressFavoritos}
+      >
+        <Text style={styles.icon}>{tieneFavoritos ? '❤️' : '🤍'}</Text>
+        <Text style={[styles.label, (esFavoritosActivo || tieneFavoritos) && styles.activeLabel]}>{t.footer.saved}</Text>
       </TouchableOpacity>
 
       {/* 3. BOTÓN PERFIL (También protegido) */}
@@ -68,7 +92,7 @@ export default function Footer() {
         onPress={handlePressPerfil}
       >
         <Text style={styles.icon}>👤</Text>
-        <Text style={styles.label}>Perfil</Text>
+        <Text style={styles.label}>{t.footer.profile}</Text>
       </TouchableOpacity>
 
     </View>
@@ -86,7 +110,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     paddingTop: 12,
     borderTopWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: '#fde0d6',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.05,
@@ -105,11 +129,11 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 11,
-    color: '#64748b',
+    color: '#94a3b8',
     fontWeight: '600',
   },
   activeLabel: {
-    color: '#0f766e',
+    color: '#f97362',
     fontWeight: '800',
   }
 });
