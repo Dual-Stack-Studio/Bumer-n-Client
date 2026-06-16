@@ -34,22 +34,20 @@ export interface ActualizarFavorInput {
 }
 
 export async function getFavores(language: Language = 'es', userId?: string): Promise<Favor[]> {
-  try {
-    const url = userId
-      ? `${API_URL}/api/favores?userId=${encodeURIComponent(userId)}`
-      : `${API_URL}/api/favores`;
+  // Conexión al backend deshabilitada temporalmente: se usan datos de ejemplo (mock).
+  // const url = userId
+  //   ? `${API_URL}/api/favores?userId=${encodeURIComponent(userId)}`
+  //   : `${API_URL}/api/favores`;
+  //
+  // const response = await fetch(url);
+  //
+  // if (!response.ok) {
+  //   throw new Error('No se pudieron cargar los favores');
+  // }
+  //
+  // return response.json();
 
-    const response = await fetch(url);
-
-    if (!response.ok) {
-      throw new Error('No se pudieron cargar los favores');
-    }
-
-    return response.json();
-  } catch (error) {
-    console.log('No se pudo conectar con el backend, usando datos de ejemplo:', error);
-    return getMockFavores(language);
-  }
+  return getMockFavores(language);
 }
 
 export async function crearFavor(input: NuevoFavorInput): Promise<Favor> {

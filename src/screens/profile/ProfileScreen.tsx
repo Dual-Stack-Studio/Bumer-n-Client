@@ -34,7 +34,7 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const { t, language } = useLanguage();
-  const { googleUser, usuarioId, cerrarSesion } = useAuth();
+  const { usuario, usuarioId, cerrarSesion } = useAuth();
 
   const [misPublicaciones, setMisPublicaciones] = useState<Favor[]>([]);
   const favoresOfrecidos = misPublicaciones.filter((f) => f.tipo === 'ofrezco').length;
@@ -89,9 +89,9 @@ export default function ProfileScreen() {
     }
   };
 
-  const avatarUri = googleUser?.user.photo;
-  const nombre = googleUser?.user.name || t.profile.defaultName;
-  const email = googleUser?.user.email || '';
+  const avatarUri = usuario?.photo ?? undefined;
+  const nombre = usuario?.name || t.profile.defaultName;
+  const email = usuario?.email || '';
 
   return (
     <View style={styles.container}>

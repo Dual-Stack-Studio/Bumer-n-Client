@@ -1,23 +1,44 @@
 import React from 'react';
-import { View, Text, TextInput, StyleSheet, Platform, TouchableOpacity } from 'react-native';
+import { View, Text, TextInput, StyleSheet, Platform, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
 import { useLanguage } from '../../../context/LanguageContext';
+import { getMockNotificaciones } from '../../../data/mockNotificaciones';
+import BurgerMenu from './BurgerMenu';
 
 // Definimos las props que va a recibir desde MainScreen
 interface NavBarProps {
   busqueda: string;
   setBusqueda: (texto: string) => void;
+  hiddenAnim?: Animated.Value;
+  onOpenFilters?: () => void;
+  hasActiveFilters?: boolean;
 }
 
-export default function NavBar({ busqueda, setBusqueda }: NavBarProps) {
-  const navigation = useNavigation<any>();
+export default function NavBar({ busqueda, setBusqueda, hiddenAnim, onOpenFilters, hasActiveFilters }: NavBarProps) {
   const { t } = useLanguage();
+  const hayNoLeidas = getMockNotificaciones(t).some((n) => !n.leida);
+
+  const animatedSearchStyle = hiddenAnim
+    ? {
+        opacity: hiddenAnim.interpolate({
+          inputRange: [0, 1],
+          outputRange: [1, 0],
+        }),
+        transform: [
+          {
+            translateY: hiddenAnim.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0, -90],
+            }),
+          },
+        ],
+      }
+    : null;
 
   return (
     <SafeAreaView style={styles.navbarContainer} pointerEvents="box-none">
       <View style={styles.row}>
-        <View style={styles.searchBox}>
+        <Animated.View style={[styles.searchBox, animatedSearchStyle]}>
           <Text style={styles.searchIcon}>🔍</Text>
           <TextInput
             style={styles.searchInput}
@@ -27,15 +48,13 @@ export default function NavBar({ busqueda, setBusqueda }: NavBarProps) {
             onChangeText={setBusqueda}
             clearButtonMode="while-editing"
           />
-        </View>
+        </Animated.View>
 
-        <TouchableOpacity
-          style={styles.bellButton}
-          onPress={() => navigation.navigate('Notifications')}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.bellIcon}>🔔</Text>
-        </TouchableOpacity>
+        <BurgerMenu
+          showNotificationBadge={hayNoLeidas}
+          onOpenFilters={onOpenFilters}
+          hasActiveFilters={hasActiveFilters}
+        />
       </View>
     </SafeAreaView>
   );
@@ -68,22 +87,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 12,
     elevation: 8,
-  },
-  bellButton: {
-    width: 52,
-    height: 52,
-    borderRadius: 12,
-    backgroundColor: '#fde0d6',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  bellIcon: {
-    fontSize: 20,
   },
   searchIcon: {
     fontSize: 18,

@@ -20,30 +20,28 @@ export default function LoginScreen({ navigation, route }: any) {
   const iniciarSesionConGoogle = async () => {
     try {
       await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-      
-      // Recibimos la respuesta completa del inicio de sesión
+
       const response = await GoogleSignin.signIn();
-      
-      // Extraemos el usuario accediendo de forma segura a response.data
-      const nombreUsuario = response.data?.user?.name;
 
-      alert(formatMessage(t.login.greeting, { name: nombreUsuario || t.login.defaultName }));
-      console.log('Usuario de Google detectado:', response.data);
-
-      // Sincronizamos con el backend para tener un userId propio
-      if (response.data) {
-        await sincronizar(response.data);
+      const idToken = response.data?.idToken;
+      if (!idToken) {
+        throw new Error('No se recibió el idToken de Google');
       }
 
+      const nombreUsuario = response.data?.user?.name;
+      alert(formatMessage(t.login.greeting, { name: nombreUsuario || t.login.defaultName }));
 
-      // 4. LÓGICA DE REDIRECCIÓN INTELIGENTE
+      // Navegamos inmediatamente — no esperamos al backend para no bloquear el flujo.
       if (redirectTo) {
-        // Si veníamos de intentar una acción bloqueada, lo mandamos directo allá
         navigation.navigate(redirectTo);
       } else {
-        // Si entró al login por su cuenta (ej. botón de perfil), solo volvemos atrás
-        navigation.goBack();
+        navigation.navigate('Main');
       }
+
+      // Sincronizamos con el backend en segundo plano.
+      sincronizar(idToken).catch((err) =>
+        console.warn('No se pudo sincronizar con el backend:', err)
+      );
 
     } catch (error: any) {
       alert(t.login.googleErrorPrefix + error.message);

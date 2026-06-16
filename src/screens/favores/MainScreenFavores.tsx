@@ -1,7 +1,6 @@
 import React, { useRef, useMemo, useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'; // <-- Añadimos TouchableOpacity
+import { View, Text, StyleSheet, TouchableOpacity, Image, Animated } from 'react-native'; // <-- Añadimos TouchableOpacity
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView, { Marker } from 'react-native-maps';
 import BottomSheet, { BottomSheetFlatList } from '@gorhom/bottom-sheet';
 
@@ -66,8 +65,36 @@ const TIPOS_POR_INTENCION: Record<string, Favor['tipo'][]> = {
 
 export default function MainScreen() {
   const { t, language } = useLanguage();
-  const insets = useSafeAreaInsets();
   const bottomSheetRef = useRef<BottomSheet>(null);
+  // Animación del buscador: 0 = visible, 1 = oculto (fuera de plano al escrollear)
+  const searchHiddenAnim = useRef(new Animated.Value(0)).current;
+  const scrollStartY = useRef(0);
+
+  const animarBusqueda = useCallback((oculto: boolean) => {
+    Animated.timing(searchHiddenAnim, {
+      toValue: oculto ? 1 : 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+  }, [searchHiddenAnim]);
+
+  const handleScrollBeginDrag = useCallback((e: any) => {
+    scrollStartY.current = e.nativeEvent.contentOffset.y;
+  }, []);
+
+  const handleScrollEnd = useCallback((e: any) => {
+    const offsetY = e.nativeEvent.contentOffset.y;
+    if (offsetY <= 0) {
+      animarBusqueda(false);
+      return;
+    }
+    const delta = offsetY - scrollStartY.current;
+    if (delta > 10) {
+      animarBusqueda(true);
+    } else if (delta < -10) {
+      animarBusqueda(false);
+    }
+  }, [animarBusqueda]);
   const snapPoints = useMemo(() => ['20%', '45%', '85%'], []);
   const [activeCategory, setActiveCategory] = useState('todos');
   // --- INICIALIZAMOS LA NAVEGACIÓN ---
@@ -173,24 +200,13 @@ export default function MainScreen() {
         ))}
       </MapView>
 
-      <NavBar busqueda={busqueda} setBusqueda={setBusqueda} />
-      {/* BOTÓN FLOTANTE DE FILTROS */}
-      <TouchableOpacity
-        style={[styles.filterButton, { top: Math.max(insets.top - 10, 8) }]}
-        onPress={() => setFiltersVisible(true)}
-        activeOpacity={0.85}
-      >
-        {hayFiltrosActivos && <View style={styles.filterBadge} />}
-        <View style={styles.filterIconLine}>
-          <View style={[styles.filterKnob, { left: '60%' }]} />
-        </View>
-        <View style={styles.filterIconLine}>
-          <View style={[styles.filterKnob, { left: '25%' }]} />
-        </View>
-        <View style={styles.filterIconLine}>
-          <View style={[styles.filterKnob, { left: '75%' }]} />
-        </View>
-      </TouchableOpacity>
+      <NavBar
+        busqueda={busqueda}
+        setBusqueda={setBusqueda}
+        hiddenAnim={searchHiddenAnim}
+        onOpenFilters={() => setFiltersVisible(true)}
+        hasActiveFilters={hayFiltrosActivos}
+      />
 
       <FiltersModal
         visible={filtersVisible}
@@ -256,7 +272,10 @@ export default function MainScreen() {
           data={favoresProcesados as Favor[]} 
           keyExtractor={(item: Favor) => item.id}
           contentContainerStyle={styles.listContent}
-          keyboardShouldPersistTaps="handled" 
+          keyboardShouldPersistTaps="handled"
+          onScrollBeginDrag={handleScrollBeginDrag}
+          onScrollEndDrag={handleScrollEnd}
+          onMomentumScrollEnd={handleScrollEnd}
           renderItem={({ item }: { item: Favor }) => {
             const estadoBadge = getEstadoBadge(item, t);
             return (
@@ -266,6 +285,9 @@ export default function MainScreen() {
               onPress={() => navigation.navigate('Detail', { favor: item })}
             >
               <View style={styles.card}>
+                {item.imagen && (
+                  <Image source={{ uri: item.imagen }} style={styles.cardImage} />
+                )}
                 <View style={styles.cardHeader}>
                   <View style={styles.cardTitleRow}>
                     <Text style={styles.cardTitle} numberOfLines={1}>{item.titulo}</Text>
@@ -306,49 +328,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fef3ec',
-  },
-  filterButton: {
-    position: 'absolute',
-    right: 16,
-    zIndex: 1000,
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#ffffff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  filterIconLine: {
-    width: 22,
-    height: 2,
-    borderRadius: 1,
-    backgroundColor: '#94a3b8',
-    justifyContent: 'center',
-  },
-  filterKnob: {
-    position: 'absolute',
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#f97362',
-    top: -3,
-    marginLeft: -4,
-  },
-  filterBadge: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-    width: 9,
-    height: 9,
-    borderRadius: 5,
-    backgroundColor: '#f97362',
-    zIndex: 1,
   },
   bottomSheetBackground: {
     backgroundColor: '#fef3ec',
@@ -411,13 +390,22 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: '#ffffff',
     borderRadius: 16,
-    padding: 20,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
     marginBottom: 16,
+    overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.06,
     shadowRadius: 8,
     elevation: 3,
+  },
+  cardImage: {
+    width: '100%',
+    height: 140,
+    marginHorizontal: -20,
+    marginBottom: 12,
+    alignSelf: 'stretch',
   },
   cardHeader: {
     flexDirection: 'column',

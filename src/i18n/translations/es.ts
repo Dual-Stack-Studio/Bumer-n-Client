@@ -11,6 +11,7 @@ const es = {
   },
   burgerMenu: {
     viewMap: 'Ver el Mapa',
+    notifications: 'Notificaciones',
     logout: 'Cerrar Sesión',
     logoutSuccessTitle: 'Sesión cerrada',
     logoutSuccessMessage: 'Has salido de tu cuenta correctamente.',

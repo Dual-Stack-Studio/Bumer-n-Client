@@ -13,6 +13,7 @@ const en: Translation = {
   },
   burgerMenu: {
     viewMap: 'View Map',
+    notifications: 'Notifications',
     logout: 'Log Out',
     logoutSuccessTitle: 'Signed out',
     logoutSuccessMessage: 'You have successfully signed out of your account.',

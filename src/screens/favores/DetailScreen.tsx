@@ -67,7 +67,7 @@ export default function DetailScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.imageContainer}>
-        <Image source={{ uri: imagenPlaceholder }} style={styles.image} />
+        <Image source={{ uri: favor.imagen || imagenPlaceholder }} style={styles.image} />
         <TouchableOpacity
           style={[styles.backButton, { top: Math.max(insets.top, 20) }]}
           onPress={() => navigation.goBack()}

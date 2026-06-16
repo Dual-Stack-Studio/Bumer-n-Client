@@ -8,9 +8,17 @@ import type { Language } from '../../../i18n/translations';
 
 interface BurgerMenuProps {
   isFloating?: boolean; // Permite alternar si flota sobre el mapa o se integra en un Header
+  showNotificationBadge?: boolean; // Muestra un punto si hay notificaciones sin leer
+  onOpenFilters?: () => void; // Abre el panel de filtros (si se provee, agrega el ítem al menú)
+  hasActiveFilters?: boolean; // Muestra un punto si hay filtros activos
 }
 
-export default function BurgerMenu({ isFloating = false }: BurgerMenuProps) {
+export default function BurgerMenu({
+  isFloating = false,
+  showNotificationBadge = false,
+  onOpenFilters,
+  hasActiveFilters = false,
+}: BurgerMenuProps) {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const [modalVisible, setModalVisible] = useState(false);
@@ -59,6 +67,16 @@ export default function BurgerMenu({ isFloating = false }: BurgerMenuProps) {
     }
   };
 
+  const handleNotificaciones = () => {
+    setModalVisible(false);
+    navigation.navigate('Notifications');
+  };
+
+  const handleFiltros = () => {
+    setModalVisible(false);
+    onOpenFilters?.();
+  };
+
   return (
     <>
       {/* BOTÓN BURGER (Flotante o relativo según la pantalla) */}
@@ -75,6 +93,7 @@ export default function BurgerMenu({ isFloating = false }: BurgerMenuProps) {
           <View style={[styles.dot, styles.dotLarge]} />
           <View style={[styles.dot, styles.dotSmall]} />
         </View>
+        {(showNotificationBadge || hasActiveFilters) && <View style={styles.notificationBadge} />}
       </TouchableOpacity>
 
       {/* MODAL DESPLEGABLE LATERAL (OVERLAY) */}
@@ -108,6 +127,30 @@ export default function BurgerMenu({ isFloating = false }: BurgerMenuProps) {
                   <Text style={styles.menuItemIcon}>🗺️</Text>
                   <Text style={styles.menuItemText}>{t.burgerMenu.viewMap}</Text>
                 </TouchableOpacity>
+
+                {/* Opción: Notificaciones */}
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={handleNotificaciones}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.menuItemIcon}>🔔</Text>
+                  <Text style={styles.menuItemText}>{t.burgerMenu.notifications}</Text>
+                  {showNotificationBadge && <View style={styles.menuItemBadge} />}
+                </TouchableOpacity>
+
+                {/* Opción: Filtros */}
+                {onOpenFilters && (
+                  <TouchableOpacity
+                    style={styles.menuItem}
+                    onPress={handleFiltros}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.menuItemIcon}>🎛️</Text>
+                    <Text style={styles.menuItemText}>{t.filters.title}</Text>
+                    {hasActiveFilters && <View style={styles.menuItemBadge} />}
+                  </TouchableOpacity>
+                )}
 
                 {/* SELECTOR DE IDIOMA */}
                 <Text style={styles.sectionLabel}>{t.language.title}</Text>
@@ -152,15 +195,15 @@ export default function BurgerMenu({ isFloating = false }: BurgerMenuProps) {
 
 const styles = StyleSheet.create({
   burgerButton: {
-    backgroundColor: '#f97362',
+    backgroundColor: '#ffffff',
     width: 48,
     height: 48,
     borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#f97362',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.12,
     shadowRadius: 8,
     elevation: 6,
   },
@@ -181,7 +224,7 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   dot: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#f97362',
     borderRadius: 6,
   },
   dotSmall: {
@@ -192,6 +235,24 @@ const styles = StyleSheet.create({
     width: 6,
     height: 14,
     borderRadius: 3,
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#ef4444',
+    borderWidth: 1.5,
+    borderColor: '#ffffff',
+  },
+  menuItemBadge: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#ef4444',
+    marginLeft: 'auto',
   },
   overlay: {
     flex: 1,

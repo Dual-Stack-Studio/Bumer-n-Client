@@ -14,4 +14,5 @@ export interface Favor {
   distancia?: number;
   telefonoContacto?: string;
   userId?: string;
+  imagen?: string;
 }
