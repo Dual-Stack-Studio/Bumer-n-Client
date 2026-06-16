@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, TouchableWithoutFeedback, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { useLanguage } from '../../../context/LanguageContext';
+import { useAuth } from '../../../context/AuthContext';
 import type { Language } from '../../../i18n/translations';
 
 interface BurgerMenuProps {
@@ -23,6 +23,7 @@ export default function BurgerMenu({
   const navigation = useNavigation<any>();
   const [modalVisible, setModalVisible] = useState(false);
   const { language, setLanguage, t } = useLanguage();
+  const { cerrarSesion } = useAuth();
 
   const LANGUAGE_OPTIONS: { code: Language; label: string; flag: string }[] = [
     { code: 'es', label: t.language.spanish, flag: '🇪🇸' },
@@ -30,28 +31,12 @@ export default function BurgerMenu({
     { code: 'de', label: t.language.german, flag: '🇩🇪' },
   ];
 
- const handleLogout = async () => {
+  const handleLogout = async () => {
     try {
-      // 1. Usamos el método moderno para verificar si hay una sesión activa
-      const tieneSesion = GoogleSignin.hasPreviousSignIn();
-      
-      if (tieneSesion) {
-        // Revocamos los tokens de acceso y deslogueamos limpiamente
-        await GoogleSignin.revokeAccess();
-        await GoogleSignin.signOut();
-      }
-      
       setModalVisible(false);
-      Alert.alert(t.burgerMenu.logoutSuccessTitle, t.burgerMenu.logoutSuccessMessage);
-
-      // Usamos goBack de manera segura para volver al mapa de fondo
-      if (navigation.canGoBack()) {
-        navigation.goBack();
-      } else {
-        navigation.navigate('Welcome');
-      }
+      await cerrarSesion();
+      navigation.reset({ index: 0, routes: [{ name: 'Welcome' }] });
     } catch (error: any) {
-      console.error('Error al cerrar sesión:', error);
       Alert.alert(
         t.burgerMenu.logoutErrorTitle,
         t.burgerMenu.logoutErrorMessage.replace('{{message}}', error.message)
