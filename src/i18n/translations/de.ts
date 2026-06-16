@@ -13,6 +13,7 @@ const de: Translation = {
   },
   burgerMenu: {
     viewMap: 'Karte ansehen',
+    notifications: 'Benachrichtigungen',
     logout: 'Abmelden',
     logoutSuccessTitle: 'Abgemeldet',
     logoutSuccessMessage: 'Du hast dich erfolgreich abgemeldet.',

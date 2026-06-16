@@ -1,56 +1,77 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { GoogleSignin, User as GoogleUser } from '@react-native-google-signin/google-signin';
-import { sincronizarUsuario, UsuarioBackend } from '../api/usuariosApi';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import {
+  loginConGoogle,
+  guardarToken,
+  obtenerToken,
+  borrarToken,
+  UsuarioBackend,
+} from '../api/usuariosApi';
 
 interface AuthContextValue {
-  googleUser: GoogleUser | null;
   usuario: UsuarioBackend | null;
   usuarioId: string | null;
+  token: string | null;
   cargando: boolean;
-  sincronizar: (googleUser: GoogleUser) => Promise<void>;
-  cerrarSesion: () => void;
+  sincronizar: (idToken: string) => Promise<void>;
+  cerrarSesion: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [googleUser, setGoogleUser] = useState<GoogleUser | null>(null);
   const [usuario, setUsuario] = useState<UsuarioBackend | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
 
-  const sincronizar = useCallback(async (user: GoogleUser) => {
-    setGoogleUser(user);
-    try {
-      const backendUser = await sincronizarUsuario({
-        googleId: user.user.id,
-        name: user.user.name ?? undefined,
-        email: user.user.email,
-        photo: user.user.photo ?? undefined,
-      });
-      setUsuario(backendUser);
-    } catch (error) {
-      console.log('No se pudo sincronizar el usuario con el backend:', error);
-      setUsuario(null);
-    }
+  const sincronizar = useCallback(async (idToken: string) => {
+    const { token: jwtToken, usuario: backendUsuario } = await loginConGoogle(idToken);
+    await guardarToken(jwtToken);
+    setToken(jwtToken);
+    setUsuario(backendUsuario);
   }, []);
 
-  const cerrarSesion = useCallback(() => {
-    setGoogleUser(null);
+  const cerrarSesion = useCallback(async () => {
+    await GoogleSignin.signOut();
+    await borrarToken();
+    setToken(null);
     setUsuario(null);
   }, []);
 
   useEffect(() => {
-    const usuarioActual = GoogleSignin.getCurrentUser();
-    if (usuarioActual) {
-      sincronizar(usuarioActual).finally(() => setCargando(false));
-    } else {
-      setCargando(false);
-    }
-  }, [sincronizar]);
+    // Al arrancar, intentamos restaurar la sesión desde el token guardado.
+    // El backend debe exponer GET /api/auth/me que valide el JWT y devuelva el usuario.
+    const restaurarSesion = async () => {
+      try {
+        const tokenGuardado = await obtenerToken();
+        if (!tokenGuardado) return;
+
+        const response = await fetch(
+          `${process.env.EXPO_PUBLIC_API_URL || 'http://10.0.2.2:3000'}/api/auth/me`,
+          { headers: { Authorization: `Bearer ${tokenGuardado}` } }
+        );
+
+        if (response.ok) {
+          const backendUsuario: UsuarioBackend = await response.json();
+          setToken(tokenGuardado);
+          setUsuario(backendUsuario);
+        } else {
+          // Token expirado o inválido — limpiamos.
+          await borrarToken();
+        }
+      } catch {
+        // Sin conexión: dejamos usuario como null para que pueda reintentar.
+      } finally {
+        setCargando(false);
+      }
+    };
+
+    restaurarSesion();
+  }, []);
 
   return (
     <AuthContext.Provider
-      value={{ googleUser, usuario, usuarioId: usuario?.id ?? null, cargando, sincronizar, cerrarSesion }}
+      value={{ usuario, usuarioId: usuario?.id ?? null, token, cargando, sincronizar, cerrarSesion }}
     >
       {children}
     </AuthContext.Provider>

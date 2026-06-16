@@ -23,7 +23,7 @@ export type RootStackParamList = {
   Welcome: undefined;
   Main: { intencion?: "necesito" | "ofrezco" } | undefined;
   Detail: { favor: any };
-  Login: undefined;
+  Login: { redirectTo?: keyof RootStackParamList } | undefined;
   RequestFavor: { favorEditar?: any } | undefined;
   Profile: undefined;
   Favoritos: undefined;

@@ -1,4 +1,8 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://10.0.2.2:3000';
+
+const TOKEN_KEY = 'auth_token';
 
 export interface UsuarioBackend {
   id: string;
@@ -9,23 +13,40 @@ export interface UsuarioBackend {
   telefono: string | null;
 }
 
-export interface SincronizarUsuarioInput {
-  googleId: string;
-  name?: string;
-  email: string;
-  photo?: string;
-  telefono?: string;
+export interface AuthResponse {
+  token: string;
+  usuario: UsuarioBackend;
 }
 
-export async function sincronizarUsuario(input: SincronizarUsuarioInput): Promise<UsuarioBackend> {
-  const response = await fetch(`${API_URL}/api/usuarios`, {
+export async function guardarToken(token: string): Promise<void> {
+  await AsyncStorage.setItem(TOKEN_KEY, token);
+}
+
+export async function obtenerToken(): Promise<string | null> {
+  return AsyncStorage.getItem(TOKEN_KEY);
+}
+
+export async function borrarToken(): Promise<void> {
+  await AsyncStorage.removeItem(TOKEN_KEY);
+}
+
+export function getAuthHeaders(token: string): Record<string, string> {
+  return {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${token}`,
+  };
+}
+
+export async function loginConGoogle(idToken: string): Promise<AuthResponse> {
+  const response = await fetch(`${API_URL}/api/auth/google`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
+    body: JSON.stringify({ idToken }),
   });
 
   if (!response.ok) {
-    throw new Error('No se pudo sincronizar el usuario');
+    const body = await response.text();
+    throw new Error(`Error al autenticar con Google: ${body}`);
   }
 
   return response.json();
