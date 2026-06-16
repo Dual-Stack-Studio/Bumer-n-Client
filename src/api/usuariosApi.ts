@@ -38,7 +38,7 @@ export function getAuthHeaders(token: string): Record<string, string> {
 }
 
 export async function loginConGoogle(idToken: string): Promise<AuthResponse> {
-  const response = await fetch(`${API_URL}/api/auth/google`, {
+  const response = await fetch(`${API_URL}/api/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ idToken }),
