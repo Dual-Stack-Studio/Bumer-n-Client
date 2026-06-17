@@ -1,14 +1,15 @@
-import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TextInput, 
-  TouchableOpacity, 
-  ScrollView, 
-  KeyboardAvoidingView, 
-  Platform 
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform
 } from 'react-native';
+import * as Location from 'expo-location';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRoute, RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../../../../App';
@@ -29,7 +30,7 @@ export default function PedirFavorScreen({ navigation }: any) {
   const favorEditar = route.params?.favorEditar as Favor | undefined;
   const esEdicion = !!favorEditar;
   const { t } = useLanguage();
-  const { usuarioId } = useAuth();
+  const { token } = useAuth();
 
   // Tipos de publicación disponibles
   const TIPOS_PUBLICACION: { id: Favor['tipo']; label: string; icon: string }[] = [
@@ -46,13 +47,54 @@ export default function PedirFavorScreen({ navigation }: any) {
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState(favorEditar?.categoria ?? CATEGORIAS[0].label);
   const [expiracionSeleccionada, setExpiracionSeleccionada] = useState(OPCIONES_EXPIRACION[2]); // 7 días
   const [publicando, setPublicando] = useState(false);
+  const [ubicacion, setUbicacion] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [errorUbicacion, setErrorUbicacion] = useState<string | null>(null);
 
-  // Simulación de la ubicación actual que heredará el favor
-  const [ubicacionSimulada] = useState({ latitude: 48.1147, longitude: 14.5661, nombre: "Stadt Haag" });
+  useEffect(() => {
+    (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      console.log('[Location] permission status:', status);
+      if (status !== 'granted') {
+        setErrorUbicacion(t.pedirFavor.locationPermissionDenied ?? 'Permiso de ubicación denegado');
+        return;
+      }
+      try {
+        let ultima: Location.LocationObject | null = null;
+        try {
+          ultima = await Location.getLastKnownPositionAsync({});
+        } catch {
+          // El servicio aún no tiene posición guardada — continuamos con getCurrentPositionAsync
+        }
+
+        if (ultima) {
+          console.log('[Location] last known:', ultima.coords.latitude, ultima.coords.longitude);
+          setUbicacion({ latitude: ultima.coords.latitude, longitude: ultima.coords.longitude });
+          return;
+        }
+
+        const loc = await Promise.race([
+          Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('Tiempo de espera agotado al obtener ubicación')), 10000)
+          ),
+        ]);
+        console.log('[Location] coords:', loc.coords.latitude, loc.coords.longitude);
+        setUbicacion({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+      } catch (e: any) {
+        console.warn('[Location] error:', e.message);
+        setErrorUbicacion(e.message);
+      }
+    })();
+  }, []);
 
   const handlePublicar = async () => {
     if (!titulo.trim() || !descripcion.trim()) {
       alert(t.pedirFavor.alertFillRequired);
+      return;
+    }
+
+    if (!ubicacion) {
+      alert(t.pedirFavor.locationNotReady ?? 'Todavía obteniendo tu ubicación, intentá de nuevo en un momento.');
       return;
     }
 
@@ -64,7 +106,7 @@ export default function PedirFavorScreen({ navigation }: any) {
           titulo: titulo.trim(),
           descripcion: descripcion.trim(),
           categoria: categoriaSeleccionada,
-        });
+        }, token!);
 
         alert(t.pedirFavor.alertUpdated);
         navigation.navigate('Profile');
@@ -78,13 +120,10 @@ export default function PedirFavorScreen({ navigation }: any) {
         titulo: titulo.trim(),
         descripcion: descripcion.trim(),
         categoria: categoriaSeleccionada,
-        ubicacion: {
-          latitude: ubicacionSimulada.latitude,
-          longitude: ubicacionSimulada.longitude,
-        },
+        latitude: ubicacion.latitude,
+        longitude: ubicacion.longitude,
         expiraEn,
-        userId: usuarioId ?? undefined,
-      });
+      }, token!);
 
       alert(t.pedirFavor.alertCreated);
 
@@ -221,7 +260,17 @@ export default function PedirFavorScreen({ navigation }: any) {
           <Text style={styles.locationIcon}>📍</Text>
           <View style={styles.locationTextContainer}>
             <Text style={styles.locationTitle}>{t.pedirFavor.locationTitle}</Text>
-            <Text style={styles.locationSubtitle}>{formatMessage(t.pedirFavor.locationSubtitle, { place: ubicacionSimulada.nombre })}</Text>
+            {errorUbicacion ? (
+              <Text style={[styles.locationSubtitle, { color: '#e11d48' }]}>{errorUbicacion}</Text>
+            ) : ubicacion ? (
+              <Text style={styles.locationSubtitle}>
+                {ubicacion.latitude.toFixed(5)}, {ubicacion.longitude.toFixed(5)}
+              </Text>
+            ) : (
+              <Text style={styles.locationSubtitle}>
+                {t.pedirFavor.locationLoading ?? 'Obteniendo ubicación…'}
+              </Text>
+            )}
           </View>
         </View>
 

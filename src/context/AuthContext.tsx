@@ -47,7 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!tokenGuardado) return;
 
         const response = await fetch(
-          `${process.env.EXPO_PUBLIC_API_URL || 'http://10.0.2.2:3000'}/api/auth/me`,
+          `${process.env.EXPO_PUBLIC_API_URL || 'https://bumeran-backend-production.up.railway.app'}/api/auth/me`,
           { headers: { Authorization: `Bearer ${tokenGuardado}` } }
         );
 

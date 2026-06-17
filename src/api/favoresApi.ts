@@ -1,22 +1,17 @@
 import { Favor } from '../types/favor';
-import { getMockFavores } from '../data/mockFavores';
 import type { Language } from '../i18n/translations';
 
-// En el emulador de Android, 10.0.2.2 apunta al localhost de la máquina anfitriona.
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://10.0.2.2:3000';
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://bumeran-backend-production.up.railway.app';
 
 export interface NuevoFavorInput {
   tipo: Favor['tipo'];
   titulo: string;
   descripcion: string;
   categoria: string;
-  ubicacion: {
-    latitude: number;
-    longitude: number;
-  };
+  latitude: number;
+  longitude: number;
   expiraEn?: string;
   telefonoContacto?: string;
-  userId?: string;
 }
 
 export interface ActualizarFavorInput {
@@ -24,66 +19,72 @@ export interface ActualizarFavorInput {
   titulo?: string;
   descripcion?: string;
   categoria?: string;
-  ubicacion?: {
-    latitude: number;
-    longitude: number;
-  };
+  latitude?: number;
+  longitude?: number;
   estado?: Favor['estado'];
   expiraEn?: string;
   telefonoContacto?: string;
 }
 
-export async function getFavores(language: Language = 'es', userId?: string): Promise<Favor[]> {
-  // Conexión al backend deshabilitada temporalmente: se usan datos de ejemplo (mock).
-  // const url = userId
-  //   ? `${API_URL}/api/favores?userId=${encodeURIComponent(userId)}`
-  //   : `${API_URL}/api/favores`;
-  //
-  // const response = await fetch(url);
-  //
-  // if (!response.ok) {
-  //   throw new Error('No se pudieron cargar los favores');
-  // }
-  //
-  // return response.json();
+export async function getFavores(_language: Language = 'es'): Promise<Favor[]> {
+  const response = await fetch(`${API_URL}/api/favores`);
 
-  return getMockFavores(language);
+  if (!response.ok) {
+    throw new Error('No se pudieron cargar los favores');
+  }
+
+  const data = await response.json();
+  // El backend devuelve latitude/longitude sueltos; el tipo Favor usa ubicacion: { latitude, longitude }
+  return data.map((f: any) => ({
+    ...f,
+    ubicacion: f.ubicacion ?? { latitude: f.latitude, longitude: f.longitude },
+  }));
 }
 
-export async function crearFavor(input: NuevoFavorInput): Promise<Favor> {
+export async function crearFavor(input: NuevoFavorInput, token: string): Promise<Favor> {
   const response = await fetch(`${API_URL}/api/favores`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
     body: JSON.stringify(input),
   });
 
   if (!response.ok) {
-    throw new Error('No se pudo publicar el favor');
+    const body = await response.json().catch(() => ({}));
+    throw new Error(body.message || 'No se pudo publicar el favor');
   }
 
   return response.json();
 }
 
-export async function actualizarFavor(id: string, input: ActualizarFavorInput): Promise<Favor> {
+export async function actualizarFavor(id: string, input: ActualizarFavorInput, token: string): Promise<Favor> {
   const response = await fetch(`${API_URL}/api/favores/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
     body: JSON.stringify(input),
   });
 
   if (!response.ok) {
-    throw new Error('No se pudo actualizar el favor');
+    const body = await response.json().catch(() => ({}));
+    throw new Error(body.message || 'No se pudo actualizar el favor');
   }
 
   return response.json();
 }
 
-export async function eliminarFavor(id: string): Promise<void> {
+export async function eliminarFavor(id: string, token: string): Promise<void> {
   const response = await fetch(`${API_URL}/api/favores/${id}`, {
     method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
   });
 
   if (!response.ok) {
-    throw new Error('No se pudo eliminar el favor');
+    const body = await response.json().catch(() => ({}));
+    throw new Error(body.message || 'No se pudo eliminar el favor');
   }
 }
