@@ -23,7 +23,8 @@ export default function BurgerMenu({
   const navigation = useNavigation<any>();
   const [modalVisible, setModalVisible] = useState(false);
   const { language, setLanguage, t } = useLanguage();
-  const { cerrarSesion } = useAuth();
+  const { usuario, cerrarSesion } = useAuth();
+  const estaLogueado = !!usuario;
 
   const LANGUAGE_OPTIONS: { code: Language; label: string; flag: string }[] = [
     { code: 'es', label: t.language.spanish, flag: '🇪🇸' },
@@ -55,6 +56,16 @@ export default function BurgerMenu({
   const handleNotificaciones = () => {
     setModalVisible(false);
     navigation.navigate('Notifications');
+  };
+
+  const handleConexiones = () => {
+    setModalVisible(false);
+    navigation.navigate('Conexiones');
+  };
+
+  const handleLogin = () => {
+    setModalVisible(false);
+    navigation.navigate('Login');
   };
 
   const handleFiltros = () => {
@@ -124,6 +135,16 @@ export default function BurgerMenu({
                   {showNotificationBadge && <View style={styles.menuItemBadge} />}
                 </TouchableOpacity>
 
+                {/* Opción: Mis Conexiones */}
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={handleConexiones}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.menuItemIcon}>🤝</Text>
+                  <Text style={styles.menuItemText}>{t.burgerMenu.myConnections}</Text>
+                </TouchableOpacity>
+
                 {/* Opción: Filtros */}
                 {onOpenFilters && (
                   <TouchableOpacity
@@ -163,11 +184,18 @@ export default function BurgerMenu({
                   ))}
                 </View>
 
-                {/* BOTÓN DE LOGOUT (Empujado al fondo) */}
-                <TouchableOpacity style={[styles.menuItem, styles.logoutItem]} onPress={handleLogout} activeOpacity={0.7}>
-                  <Text style={styles.menuItemIcon}>🚪</Text>
-                  <Text style={[styles.menuItemText, styles.logoutText]}>{t.burgerMenu.logout}</Text>
-                </TouchableOpacity>
+                {/* BOTÓN DE LOGIN/LOGOUT (Empujado al fondo, según estado de sesión) */}
+                {estaLogueado ? (
+                  <TouchableOpacity style={[styles.menuItem, styles.logoutItem]} onPress={handleLogout} activeOpacity={0.7}>
+                    <Text style={styles.menuItemIcon}>🚪</Text>
+                    <Text style={[styles.menuItemText, styles.logoutText]}>{t.burgerMenu.logout}</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity style={[styles.menuItem, styles.logoutItem]} onPress={handleLogin} activeOpacity={0.7}>
+                    <Text style={styles.menuItemIcon}>🔑</Text>
+                    <Text style={[styles.menuItemText, styles.logoutText]}>{t.burgerMenu.login}</Text>
+                  </TouchableOpacity>
+                )}
 
               </View>
             </TouchableWithoutFeedback>

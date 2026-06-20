@@ -43,7 +43,7 @@ const getTipoBadge = (tipo: Favor["tipo"], t: Translation) => {
 
 export default function DetailScreen() {
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   const route = useRoute<RouteProp<RootStackParamList, "Detail">>();
   const { favor } = route.params;
   const [showSafety, setShowSafety] = useState(false);
@@ -140,6 +140,13 @@ export default function DetailScreen() {
           <Text style={styles.primaryButtonText}>
             {getBotonTexto(favor.tipo, t)}
           </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.secondaryButton}
+          onPress={() => navigation.navigate('Review', { favor })}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.secondaryButtonText}>{t.profile.calificar}</Text>
         </TouchableOpacity>
       </View>
 
@@ -300,11 +307,21 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 4,
+    marginBottom: 10,
   },
   primaryButtonText: {
     color: "#ffffff",
     fontSize: 16,
     fontWeight: "700",
+  },
+  secondaryButton: {
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  secondaryButtonText: {
+    color: "#e11d48",
+    fontSize: 14,
+    fontWeight: "600",
   },
   fechaRow: {
     flexDirection: "row",

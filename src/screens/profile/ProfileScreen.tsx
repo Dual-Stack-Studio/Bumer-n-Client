@@ -13,8 +13,10 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 
 import { eliminarFavor, getFavores } from '../../api/favoresApi';
+import { getReviewsDeUsuario } from '../../api/reviewsApi';
 import { useAuth } from '../../context/AuthContext';
 import { Favor } from '../../types/favor';
+import { Review } from '../../types/review';
 import { useLanguage } from '../../context/LanguageContext';
 import { formatMessage } from '../../i18n/format';
 import type { Translation } from '../../i18n/translations';
@@ -34,10 +36,14 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const { t, language } = useLanguage();
-  const { usuario, usuarioId, cerrarSesion } = useAuth();
+  const { usuario, usuarioId, token, cerrarSesion } = useAuth();
 
   const [misPublicaciones, setMisPublicaciones] = useState<Favor[]>([]);
+  const [resenias, setResenias] = useState<Review[]>([]);
   const favoresOfrecidos = misPublicaciones.filter((f) => f.tipo === 'ofrezco').length;
+  const ratingPromedio = resenias.length
+    ? (resenias.reduce((sum, r) => sum + r.estrellas, 0) / resenias.length).toFixed(1)
+    : '—';
 
   useFocusEffect(
     useCallback(() => {
@@ -45,7 +51,10 @@ export default function ProfileScreen() {
         setMisPublicaciones([]);
         return;
       }
-      getFavores(language, usuarioId).then(setMisPublicaciones).catch(() => setMisPublicaciones([]));
+      getFavores(language).then(setMisPublicaciones).catch(() => setMisPublicaciones([]));
+      if (usuarioId) {
+        getReviewsDeUsuario(usuarioId).then(setResenias).catch(() => setResenias([]));
+      }
     }, [language, usuarioId])
   );
 
@@ -64,7 +73,7 @@ export default function ProfileScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await eliminarFavor(favor.id);
+              await eliminarFavor(favor.id, token ?? '');
               setMisPublicaciones((prev) => prev.filter((f) => f.id !== favor.id));
             } catch (error: any) {
               Alert.alert(t.profile.deleteTitle, error.message);
@@ -128,6 +137,10 @@ export default function ProfileScreen() {
             <Text style={styles.statNumero}>{favoresOfrecidos}</Text>
             <Text style={styles.statLabel}>{t.profile.favoresOfrecidos}</Text>
           </View>
+          <View style={styles.statBox}>
+            <Text style={styles.statNumero}>⭐ {ratingPromedio}</Text>
+            <Text style={styles.statLabel}>{t.profile.valoracion}</Text>
+          </View>
         </View>
 
         <Text style={styles.sectionTitle}>{t.profile.misPublicaciones}</Text>
@@ -155,6 +168,38 @@ export default function ProfileScreen() {
         })}
         {misPublicaciones.length === 0 && (
           <Text style={styles.sinPublicaciones}>{t.profile.sinPublicaciones}</Text>
+        )}
+
+        <Text style={[styles.sectionTitle, { marginTop: 8 }]}>{t.profile.reseniasRecibidas}</Text>
+        {resenias.length === 0 ? (
+          <Text style={styles.sinPublicaciones}>{t.profile.sinResenias}</Text>
+        ) : (
+          resenias.map((r) => (
+            <View key={r.id} style={styles.reseniaCard}>
+              <View style={styles.reseniaHeader}>
+                <View style={styles.reseniaAvatar}>
+                  <Text style={styles.reseniaAvatarText}>
+                    {r.autorNombre.charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.reseniaAutor}>{r.autorNombre}</Text>
+                  <Text style={styles.reseniaFavor} numberOfLines={1}>{r.favorTitulo}</Text>
+                </View>
+                <View style={styles.reseniaEstrellas}>
+                  <Text style={styles.reseniaEstrellasText}>
+                    {'★'.repeat(r.estrellas)}{'☆'.repeat(5 - r.estrellas)}
+                  </Text>
+                </View>
+              </View>
+              {r.comentario ? (
+                <Text style={styles.reseniaComentario}>{r.comentario}</Text>
+              ) : null}
+              <Text style={styles.reseniaFecha}>
+                {new Date(r.creadoEn).toLocaleDateString()}
+              </Text>
+            </View>
+          ))
         )}
 
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.8}>
@@ -338,5 +383,66 @@ const styles = StyleSheet.create({
     color: '#ef4444',
     fontSize: 15,
     fontWeight: '700',
+  },
+  reseniaCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
+  },
+  reseniaHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 8,
+  },
+  reseniaAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#fef3c7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reseniaAvatarText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#e11d48',
+  },
+  reseniaAutor: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  reseniaFavor: {
+    fontSize: 12,
+    color: '#94a3b8',
+    fontWeight: '500',
+  },
+  reseniaEstrellas: {
+    alignSelf: 'flex-start',
+  },
+  reseniaEstrellasText: {
+    fontSize: 14,
+    color: '#f59e0b',
+    letterSpacing: 1,
+  },
+  reseniaComentario: {
+    fontSize: 13,
+    color: '#475569',
+    lineHeight: 18,
+    marginBottom: 6,
+  },
+  reseniaFecha: {
+    fontSize: 11,
+    color: '#94a3b8',
+    fontWeight: '500',
   },
 });

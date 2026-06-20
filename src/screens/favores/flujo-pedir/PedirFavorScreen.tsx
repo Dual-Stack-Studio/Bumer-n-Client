@@ -46,6 +46,7 @@ export default function PedirFavorScreen({ navigation }: any) {
   const [descripcion, setDescripcion] = useState(favorEditar?.descripcion ?? '');
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState(favorEditar?.categoria ?? CATEGORIAS[0].label);
   const [expiracionSeleccionada, setExpiracionSeleccionada] = useState(OPCIONES_EXPIRACION[2]); // 7 días
+  const [telefono, setTelefono] = useState(favorEditar?.telefonoContacto ?? '');
   const [publicando, setPublicando] = useState(false);
   const [ubicacion, setUbicacion] = useState<{ latitude: number; longitude: number } | null>(null);
   const [errorUbicacion, setErrorUbicacion] = useState<string | null>(null);
@@ -106,6 +107,7 @@ export default function PedirFavorScreen({ navigation }: any) {
           titulo: titulo.trim(),
           descripcion: descripcion.trim(),
           categoria: categoriaSeleccionada,
+          telefonoContacto: telefono.trim() || undefined,
         }, token!);
 
         alert(t.pedirFavor.alertUpdated);
@@ -123,6 +125,7 @@ export default function PedirFavorScreen({ navigation }: any) {
         latitude: ubicacion.latitude,
         longitude: ubicacion.longitude,
         expiraEn,
+        telefonoContacto: telefono.trim() || undefined,
       }, token!);
 
       alert(t.pedirFavor.alertCreated);
@@ -255,7 +258,22 @@ export default function PedirFavorScreen({ navigation }: any) {
           />
         </View>
 
-        {/* SECCIÓN 4: INFORMACIÓN DE UBICACIÓN AUTOMÁTICA */}
+        {/* SECCIÓN 4: TELÉFONO DE CONTACTO */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>{t.pedirFavor.telefonoLabel}</Text>
+          <TextInput
+            style={styles.input}
+            placeholder={t.pedirFavor.telefonoPlaceholder}
+            placeholderTextColor="#94a3b8"
+            value={telefono}
+            onChangeText={setTelefono}
+            keyboardType="phone-pad"
+            maxLength={20}
+          />
+          <Text style={styles.telefonoHint}>{t.pedirFavor.telefonoHint}</Text>
+        </View>
+
+        {/* SECCIÓN 5: INFORMACIÓN DE UBICACIÓN AUTOMÁTICA */}
         <View style={styles.locationInfoBox}>
           <Text style={styles.locationIcon}>📍</Text>
           <View style={styles.locationTextContainer}>
@@ -418,6 +436,12 @@ const styles = StyleSheet.create({
   badgeTextActiva: {
     color: '#e11d48',
     fontWeight: '700',
+  },
+  telefonoHint: {
+    fontSize: 12,
+    color: '#94a3b8',
+    marginTop: 6,
+    lineHeight: 16,
   },
   locationInfoBox: {
     flexDirection: 'row',
