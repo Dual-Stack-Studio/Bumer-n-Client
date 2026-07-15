@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, TouchableWithoutFeedback, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { useLanguage } from '../../../context/LanguageContext';
+import { useAuth } from '../../../context/AuthContext';
 import type { Language } from '../../../i18n/translations';
 
 interface BurgerMenuProps {
@@ -23,6 +23,8 @@ export default function BurgerMenu({
   const navigation = useNavigation<any>();
   const [modalVisible, setModalVisible] = useState(false);
   const { language, setLanguage, t } = useLanguage();
+  const { usuario, cerrarSesion } = useAuth();
+  const estaLogueado = !!usuario;
 
   const LANGUAGE_OPTIONS: { code: Language; label: string; flag: string }[] = [
     { code: 'es', label: t.language.spanish, flag: '🇪🇸' },
@@ -30,28 +32,12 @@ export default function BurgerMenu({
     { code: 'de', label: t.language.german, flag: '🇩🇪' },
   ];
 
- const handleLogout = async () => {
+  const handleLogout = async () => {
     try {
-      // 1. Usamos el método moderno para verificar si hay una sesión activa
-      const tieneSesion = GoogleSignin.hasPreviousSignIn();
-      
-      if (tieneSesion) {
-        // Revocamos los tokens de acceso y deslogueamos limpiamente
-        await GoogleSignin.revokeAccess();
-        await GoogleSignin.signOut();
-      }
-      
       setModalVisible(false);
-      Alert.alert(t.burgerMenu.logoutSuccessTitle, t.burgerMenu.logoutSuccessMessage);
-
-      // Usamos goBack de manera segura para volver al mapa de fondo
-      if (navigation.canGoBack()) {
-        navigation.goBack();
-      } else {
-        navigation.navigate('Welcome');
-      }
+      await cerrarSesion();
+      navigation.reset({ index: 0, routes: [{ name: 'Welcome' }] });
     } catch (error: any) {
-      console.error('Error al cerrar sesión:', error);
       Alert.alert(
         t.burgerMenu.logoutErrorTitle,
         t.burgerMenu.logoutErrorMessage.replace('{{message}}', error.message)
@@ -70,6 +56,16 @@ export default function BurgerMenu({
   const handleNotificaciones = () => {
     setModalVisible(false);
     navigation.navigate('Notifications');
+  };
+
+  const handleConexiones = () => {
+    setModalVisible(false);
+    navigation.navigate('Conexiones');
+  };
+
+  const handleLogin = () => {
+    setModalVisible(false);
+    navigation.navigate('Login');
   };
 
   const handleFiltros = () => {
@@ -139,6 +135,16 @@ export default function BurgerMenu({
                   {showNotificationBadge && <View style={styles.menuItemBadge} />}
                 </TouchableOpacity>
 
+                {/* Opción: Mis Conexiones */}
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={handleConexiones}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.menuItemIcon}>🤝</Text>
+                  <Text style={styles.menuItemText}>{t.burgerMenu.myConnections}</Text>
+                </TouchableOpacity>
+
                 {/* Opción: Filtros */}
                 {onOpenFilters && (
                   <TouchableOpacity
@@ -178,11 +184,18 @@ export default function BurgerMenu({
                   ))}
                 </View>
 
-                {/* BOTÓN DE LOGOUT (Empujado al fondo) */}
-                <TouchableOpacity style={[styles.menuItem, styles.logoutItem]} onPress={handleLogout} activeOpacity={0.7}>
-                  <Text style={styles.menuItemIcon}>🚪</Text>
-                  <Text style={[styles.menuItemText, styles.logoutText]}>{t.burgerMenu.logout}</Text>
-                </TouchableOpacity>
+                {/* BOTÓN DE LOGIN/LOGOUT (Empujado al fondo, según estado de sesión) */}
+                {estaLogueado ? (
+                  <TouchableOpacity style={[styles.menuItem, styles.logoutItem]} onPress={handleLogout} activeOpacity={0.7}>
+                    <Text style={styles.menuItemIcon}>🚪</Text>
+                    <Text style={[styles.menuItemText, styles.logoutText]}>{t.burgerMenu.logout}</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity style={[styles.menuItem, styles.logoutItem]} onPress={handleLogin} activeOpacity={0.7}>
+                    <Text style={styles.menuItemIcon}>🔑</Text>
+                    <Text style={[styles.menuItemText, styles.logoutText]}>{t.burgerMenu.login}</Text>
+                  </TouchableOpacity>
+                )}
 
               </View>
             </TouchableWithoutFeedback>
