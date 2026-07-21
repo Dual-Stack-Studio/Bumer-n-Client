@@ -163,6 +163,8 @@ const es = {
   },
   notifications: {
     title: 'Notificaciones',
+    emptyTitle: 'Sin notificaciones',
+    emptyText: 'Cuando alguien se conecte con tus favores o actualice una solicitud, aparecerá acá.',
     n1Titulo: 'Alguien respondió tu favor',
     n1Desc: 'Juan está interesado en "Necesito una pala". Contactalo por WhatsApp.',
     n1Fecha: 'Hace 2 horas',

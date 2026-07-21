@@ -165,6 +165,8 @@ const en: Translation = {
   },
   notifications: {
     title: 'Notifications',
+    emptyTitle: 'No notifications',
+    emptyText: 'When someone connects with your favors or updates a request, it will appear here.',
     n1Titulo: 'Someone replied to your favor',
     n1Desc: 'Juan is interested in "I need a shovel". Contact him on WhatsApp.',
     n1Fecha: '2 hours ago',

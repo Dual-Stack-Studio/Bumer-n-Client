@@ -36,6 +36,8 @@ export default {
       permissions: [
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.VIBRATE",
       ],
       package: "com.sebita1495.client",
     },
@@ -61,6 +63,14 @@ export default {
       "@react-native-google-signin/google-signin",
       "expo-status-bar",
       "expo-localization",
+      [
+        "expo-notifications",
+        {
+          icon: "./assets/icon.png",
+          color: "#e11d48",
+          sounds: [],
+        },
+      ],
     ],
   },
 };

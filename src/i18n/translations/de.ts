@@ -165,6 +165,8 @@ const de: Translation = {
   },
   notifications: {
     title: 'Benachrichtigungen',
+    emptyTitle: 'Keine Benachrichtigungen',
+    emptyText: 'Wenn jemand mit deinen Gefälligkeiten interagiert oder eine Anfrage aktualisiert, erscheint es hier.',
     n1Titulo: 'Jemand hat auf deine Anfrage geantwortet',
     n1Desc: 'Juan interessiert sich für "Ich brauche eine Schaufel". Kontaktiere ihn über WhatsApp.',
     n1Fecha: 'Vor 2 Stunden',

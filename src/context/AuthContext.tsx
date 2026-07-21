@@ -1,5 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { Platform } from 'react-native';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import * as Notifications from 'expo-notifications';
 import {
   loginConGoogle,
   guardarToken,
@@ -7,6 +9,17 @@ import {
   borrarToken,
   UsuarioBackend,
 } from '../api/usuariosApi';
+import { guardarPushToken } from '../api/notificacionesApi';
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
 
 interface AuthContextValue {
   usuario: UsuarioBackend | null;
@@ -20,6 +33,33 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+async function registrarPushToken(jwtToken: string) {
+  try {
+    const { status: existing } = await Notifications.getPermissionsAsync();
+    let finalStatus = existing;
+    if (existing !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+    if (finalStatus !== 'granted') return;
+
+    const projectId = '5d9041e3-1c90-479a-829f-6de1c3039c45';
+    const { data: pushToken } = await Notifications.getExpoPushTokenAsync({ projectId });
+    await guardarPushToken(pushToken, jwtToken);
+
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'Bumerán',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+      });
+    }
+  } catch (e) {
+    // Push no crítico — no interrumpir el flujo de login
+    console.warn('[Push] No se pudo registrar el token:', e);
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [usuario, setUsuario] = useState<UsuarioBackend | null>(null);
   const [token, setToken] = useState<string | null>(null);
@@ -30,6 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await guardarToken(jwtToken);
     setToken(jwtToken);
     setUsuario(backendUsuario);
+    void registrarPushToken(jwtToken);
   }, []);
 
   const cerrarSesion = useCallback(async () => {
@@ -69,6 +110,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const backendUsuario: UsuarioBackend = await response.json();
           setToken(tokenGuardado);
           setUsuario(backendUsuario);
+          void registrarPushToken(tokenGuardado);
         } else {
           // Token expirado o inválido — limpiamos.
           await borrarToken();
