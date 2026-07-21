@@ -515,7 +515,7 @@ const styles = StyleSheet.create({
   myLocationBtn: {
     position: 'absolute',
     right: 16,
-    bottom: '22%',
+    bottom: '38%',
     width: 48,
     height: 48,
     borderRadius: 24,
