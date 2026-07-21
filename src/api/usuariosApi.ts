@@ -11,6 +11,7 @@ export interface UsuarioBackend {
   email: string;
   photo: string | null;
   telefono: string | null;
+  telefonoVerificado: boolean;
 }
 
 export interface AuthResponse {
@@ -35,6 +36,18 @@ export function getAuthHeaders(token: string): Record<string, string> {
     'Content-Type': 'application/json',
     Authorization: `Bearer ${token}`,
   };
+}
+
+export async function eliminarCuenta(token: string): Promise<void> {
+  const response = await fetch(`${API_URL}/api/usuarios/me`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(body.message || 'No se pudo eliminar la cuenta');
+  }
 }
 
 export async function loginConGoogle(idToken: string): Promise<AuthResponse> {

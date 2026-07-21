@@ -7,13 +7,18 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
+  Linking,
 } from 'react-native';
+
+const PRIVACY_POLICY_URL = 'https://dual-stack-studio.github.io/App-cadenas-de-favores-client/privacidad';
+const TERMS_URL = 'https://dual-stack-studio.github.io/App-cadenas-de-favores-client/terminos';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 
 import { eliminarFavor, getFavores } from '../../api/favoresApi';
 import { getReviewsDeUsuario } from '../../api/reviewsApi';
+import { eliminarCuenta } from '../../api/usuariosApi';
 import { useAuth } from '../../context/AuthContext';
 import { Favor } from '../../types/favor';
 import { Review } from '../../types/review';
@@ -98,6 +103,37 @@ export default function ProfileScreen() {
     }
   };
 
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      t.profile.deleteAccountTitle,
+      t.profile.deleteAccountMessage,
+      [
+        { text: t.common.cancel, style: 'cancel' },
+        {
+          text: t.profile.deleteAccountConfirm,
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await eliminarCuenta(token ?? '');
+              // Limpiar sesión local (best-effort en Google Sign-In)
+              try {
+                if (GoogleSignin.hasPreviousSignIn()) {
+                  await GoogleSignin.revokeAccess();
+                  await GoogleSignin.signOut();
+                }
+              } catch {}
+              await cerrarSesion();
+              Alert.alert('', t.profile.deleteAccountSuccess);
+              navigation.reset({ index: 0, routes: [{ name: 'Welcome' }] });
+            } catch (error: any) {
+              Alert.alert(t.profile.deleteAccountTitle, t.profile.deleteAccountError);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const avatarUri = usuario?.photo ?? undefined;
   const nombre = usuario?.name || t.profile.defaultName;
   const email = usuario?.email || '';
@@ -127,6 +163,25 @@ export default function ProfileScreen() {
           <Text style={styles.nombre}>{nombre}</Text>
           {email ? <Text style={styles.email}>{email}</Text> : null}
         </View>
+
+        {usuario && !usuario.telefonoVerificado && (
+          <TouchableOpacity
+            style={styles.verificationBanner}
+            onPress={() => navigation.navigate('VerificacionTelefono')}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.verificationBannerIcon}>📱</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.verificationBannerText}>{t.verificacion.profileBannerText}</Text>
+            </View>
+            <Text style={styles.verificationBannerArrow}>›</Text>
+          </TouchableOpacity>
+        )}
+        {usuario?.telefonoVerificado && (
+          <View style={styles.verifiedBadge}>
+            <Text style={styles.verifiedBadgeText}>{t.verificacion.verifiedBadge}</Text>
+          </View>
+        )}
 
         <View style={styles.statsRow}>
           <View style={styles.statBox}>
@@ -205,6 +260,65 @@ export default function ProfileScreen() {
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.8}>
           <Text style={styles.logoutButtonText}>{t.profile.logout}</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity style={styles.deleteAccountButton} onPress={handleDeleteAccount} activeOpacity={0.8}>
+          <Text style={styles.deleteAccountButtonText}>{t.profile.deleteAccount}</Text>
+        </TouchableOpacity>
+
+        {/* ── FOOTER GDPR ─────────────────────────────────────── */}
+        <View style={styles.footerDivider} />
+
+        <Text style={styles.footerSectionTitle}>{t.footer.dataSourcesTitle}</Text>
+        <View style={styles.footerRow}>
+          <Text style={styles.footerIcon}>🗺️</Text>
+          <Text style={styles.footerLabel}>{t.footer.dataSourceMap} </Text>
+          <Text style={styles.footerLink} onPress={() => Linking.openURL('https://maps.google.com/intl/en_us/help/terms_maps.html')}>
+            {t.footer.dataSourceMapLink}
+          </Text>
+        </View>
+        <View style={styles.footerRow}>
+          <Text style={styles.footerIcon}>🔐</Text>
+          <Text style={styles.footerLabel}>{t.footer.dataSourceAuth} </Text>
+          <Text style={styles.footerLink} onPress={() => Linking.openURL('https://policies.google.com/privacy')}>
+            {t.footer.dataSourceAuthLink}
+          </Text>
+        </View>
+        <View style={styles.footerRow}>
+          <Text style={styles.footerIcon}>💬</Text>
+          <Text style={styles.footerLabel}>{t.footer.dataSourceContact} </Text>
+          <Text style={styles.footerLink} onPress={() => Linking.openURL('https://www.whatsapp.com/legal/privacy-policy')}>
+            {t.footer.dataSourceContactLink}
+          </Text>
+        </View>
+
+        <View style={styles.footerDivider} />
+
+        <Text style={styles.footerSectionTitle}>{t.footer.privacyTitle}</Text>
+        <Text style={styles.footerText}>{t.footer.privacyText}</Text>
+        <Text style={styles.footerText}>
+          {t.footer.gdprBefore}{' '}
+          <Text style={styles.footerBold}>{t.footer.gdprRights}</Text>
+          {' '}{t.footer.gdprAfter}
+        </Text>
+        <Text
+          style={styles.footerLink}
+          onPress={() => Linking.openURL(`mailto:${t.footer.contactEmail}`)}
+        >
+          {t.footer.contactEmail}
+        </Text>
+        <Text style={[styles.footerText, { marginTop: 10 }]}>{t.footer.dpaText}</Text>
+
+        <View style={styles.footerButtonsRow}>
+          <TouchableOpacity style={styles.footerButton} onPress={() => Linking.openURL(PRIVACY_POLICY_URL)} activeOpacity={0.8}>
+            <Text style={styles.footerButtonText}>{t.footer.privacyPolicy}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.footerButton} onPress={() => Linking.openURL(TERMS_URL)} activeOpacity={0.8}>
+            <Text style={styles.footerButtonText}>{t.footer.termsOfUse}</Text>
+          </TouchableOpacity>
+        </View>
+
+        <Text style={styles.footerCopyright}>{t.footer.copyright}</Text>
+        <Text style={styles.footerCompliance}>{t.footer.gdprCompliant}</Text>
       </ScrollView>
     </View>
   );
@@ -384,6 +498,18 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
   },
+  deleteAccountButton: {
+    marginTop: 8,
+    paddingVertical: 14,
+    borderRadius: 16,
+    alignItems: 'center',
+  },
+  deleteAccountButtonText: {
+    color: '#94a3b8',
+    fontSize: 13,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
   reseniaCard: {
     backgroundColor: '#ffffff',
     borderRadius: 16,
@@ -444,5 +570,121 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#94a3b8',
     fontWeight: '500',
+  },
+
+  // ── FOOTER GDPR ───────────────────────────────────────────────
+  footerDivider: {
+    height: 1,
+    backgroundColor: '#f1f5f9',
+    marginVertical: 20,
+  },
+  footerSectionTitle: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#94a3b8',
+    letterSpacing: 1.2,
+    marginBottom: 12,
+  },
+  footerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    flexWrap: 'wrap',
+  },
+  footerIcon: {
+    fontSize: 14,
+    marginRight: 6,
+  },
+  footerLabel: {
+    fontSize: 13,
+    color: '#64748b',
+  },
+  footerLink: {
+    fontSize: 13,
+    color: '#e11d48',
+    fontWeight: '600',
+  },
+  footerText: {
+    fontSize: 13,
+    color: '#64748b',
+    lineHeight: 20,
+    marginBottom: 6,
+  },
+  footerBold: {
+    fontWeight: '700',
+    color: '#1e293b',
+  },
+  footerButtonsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 14,
+    marginBottom: 16,
+  },
+  footerButton: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 20,
+    paddingVertical: 10,
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+  },
+  footerButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#475569',
+  },
+  footerCopyright: {
+    fontSize: 12,
+    color: '#94a3b8',
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  footerCompliance: {
+    fontSize: 10,
+    color: '#cbd5e1',
+    textAlign: 'center',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  verificationBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff7ed',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#fed7aa',
+    padding: 14,
+    marginBottom: 16,
+    gap: 10,
+  },
+  verificationBannerIcon: {
+    fontSize: 20,
+  },
+  verificationBannerText: {
+    fontSize: 13,
+    color: '#c2410c',
+    fontWeight: '600',
+    lineHeight: 18,
+  },
+  verificationBannerArrow: {
+    fontSize: 20,
+    color: '#c2410c',
+    fontWeight: '700',
+  },
+  verifiedBadge: {
+    alignSelf: 'center',
+    backgroundColor: '#f0fdf4',
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+    marginBottom: 16,
+  },
+  verifiedBadgeText: {
+    fontSize: 13,
+    color: '#15803d',
+    fontWeight: '700',
   },
 });
