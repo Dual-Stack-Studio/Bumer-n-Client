@@ -1,4 +1,5 @@
-import React, { useRef, useMemo, useState, useEffect, useCallback } from 'react';
+import React, { useRef, useMemo, useState, useCallback } from 'react';
+import * as Location from 'expo-location';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Animated } from 'react-native'; // <-- Añadimos TouchableOpacity
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import MapView, { Marker } from 'react-native-maps';
@@ -66,6 +67,7 @@ const TIPOS_POR_INTENCION: Record<string, Favor['tipo'][]> = {
 export default function MainScreen() {
   const { t, language } = useLanguage();
   const bottomSheetRef = useRef<BottomSheet>(null);
+  const mapRef = useRef<MapView>(null);
   // Animación del buscador: 0 = visible, 1 = oculto (fuera de plano al escrollear)
   const searchHiddenAnim = useRef(new Animated.Value(0)).current;
   const scrollStartY = useRef(0);
@@ -106,7 +108,34 @@ export default function MainScreen() {
   );
 
   // Estados
-  const [miUbicacion] = useState({ latitude: 48.1147, longitude: 14.5661 });
+  const [miUbicacion, setMiUbicacion] = useState({ latitude: 48.1147, longitude: 14.5661 });
+
+  // Centrar el mapa cuando cambia miUbicacion
+  React.useEffect(() => {
+    mapRef.current?.animateToRegion({
+      latitude: miUbicacion.latitude,
+      longitude: miUbicacion.longitude,
+      latitudeDelta: 0.05,
+      longitudeDelta: 0.05,
+    }, 800);
+  }, [miUbicacion]);
+
+  // Obtener ubicación real del dispositivo al montar
+  React.useEffect(() => {
+    (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') return;
+      try {
+        const ultima = await Location.getLastKnownPositionAsync({});
+        if (ultima) {
+          setMiUbicacion({ latitude: ultima.coords.latitude, longitude: ultima.coords.longitude });
+        }
+        const actual = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        setMiUbicacion({ latitude: actual.coords.latitude, longitude: actual.coords.longitude });
+      } catch {}
+    })();
+  }, []);
+
   const [busqueda, setBusqueda] = useState('');
   const [favores, setFavores] = useState<Favor[]>([]);
   const { favoritos, esFavorito, toggleFavorito } = useFavoritos();
@@ -176,13 +205,14 @@ export default function MainScreen() {
 
   return (
     <GestureHandlerRootView style={styles.container}>
-      <MapView 
+      <MapView
+        ref={mapRef}
         style={{ width: '100%', height: '100%', position: 'absolute' }}
-        initialRegion={{ 
-          latitude: miUbicacion.latitude, 
-          longitude: miUbicacion.longitude, 
-          latitudeDelta: 0.05, 
-          longitudeDelta: 0.05 
+        initialRegion={{
+          latitude: miUbicacion.latitude,
+          longitude: miUbicacion.longitude,
+          latitudeDelta: 0.05,
+          longitudeDelta: 0.05,
         }}
         showsUserLocation={true}
       >
