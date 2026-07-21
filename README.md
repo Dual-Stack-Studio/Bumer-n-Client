@@ -39,6 +39,8 @@ Each type maps to complementary content — someone who needs help only sees off
 - 🔑 **Google Sign-In** — passwordless auth; an OAuth 2.0 ID token is verified server-side. Session is persisted in AsyncStorage and restored on app launch.
 - 🌍 **Multilingual** — Spanish, English and German (ES / EN / DE) from day one, via `expo-localization`.
 - ⚖️ **GDPR / RGPD compliant footer** — a reusable `FooterLegal` component appears on all main screens with data sources, full GDPR rights section (access, rectify, export, delete), Privacy Policy and Terms of Use links, and an EU Digital Services Act compliance badge.
+- 🔔 **Real push notifications** — via the **Expo Push API** (`expo-notifications`). The app registers a device token on login and receives native push notifications for key connection events: new connection request, accepted, completed, cancelled. A full Notifications screen shows the history with relative timestamps and marks all as read on open.
+- 📸 **Photo upload** — up to 4 photos per favor, picked from camera or gallery via `expo-image-picker` and uploaded to **Cloudinary** (unsigned preset). Detail screen shows a horizontal swipeable gallery with pagination dots.
 
 ---
 
@@ -54,6 +56,9 @@ Each type maps to complementary content — someone who needs help only sees off
 | Location | `expo-location` |
 | Bottom sheet | `@gorhom/bottom-sheet` |
 | Auth | `@react-native-google-signin/google-signin` |
+| Push notifications | `expo-notifications` + Expo Push API |
+| Image picker | `expo-image-picker` |
+| Image hosting | Cloudinary (unsigned upload, REST API) |
 | i18n | `expo-localization` + custom translation layer (ES/EN/DE) |
 | Storage | AsyncStorage |
 | API | `fetch` against the Bumerán NestJS backend |
@@ -64,9 +69,9 @@ Each type maps to complementary content — someone who needs help only sees off
 
 ```
 src/
-├── api/            # Backend clients (favores, conexiones, reviews, usuarios, verificacion)
+├── api/            # Backend clients (favores, conexiones, reviews, usuarios, verificacion, notificaciones)
 ├── components/     # Shared components (FooterLegal, …)
-├── context/        # AuthContext (JWT + session restore + refrescarUsuario), FavoritosContext, LanguageContext
+├── context/        # AuthContext (JWT + session restore + push token registration), FavoritosContext, LanguageContext
 ├── screens/
 │   ├── auth/       # WelcomeScreen, LoginScreen, VerificacionTelefonoScreen
 │   ├── favores/    # MainScreenFavores (map + list), DetailScreen, PedirFavorScreen
@@ -78,7 +83,7 @@ src/
 ├── i18n/           # Translations (es / en / de) + formatting helpers
 ├── data/           # Categories and mock/seed data
 ├── types/          # Shared TypeScript types
-└── utils/          # Helpers (favorHelpers, etc.)
+└── utils/          # Helpers (favorHelpers, cloudinary upload)
 ```
 
 ---
