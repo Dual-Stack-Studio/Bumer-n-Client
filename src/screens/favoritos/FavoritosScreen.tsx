@@ -8,6 +8,7 @@ import { useFavoritos } from '../../context/FavoritosContext';
 import { Favor } from '../../types/favor';
 import { getEstadoBadge, getTiempoRestante } from '../../utils/favorHelpers';
 import { useLanguage } from '../../context/LanguageContext';
+import FooterLegal from '../../components/FooterLegal';
 
 export default function FavoritosScreen() {
   const insets = useSafeAreaInsets();
@@ -38,6 +39,7 @@ export default function FavoritosScreen() {
         data={favoritosFavores}
         keyExtractor={(item) => item.id}
         contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(insets.bottom, 24) + 16 }]}
+        ListFooterComponent={<FooterLegal />}
         ListEmptyComponent={
           <View style={styles.empty}>
             <Text style={styles.emptyIcon}>🤍</Text>

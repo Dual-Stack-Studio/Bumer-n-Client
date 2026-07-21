@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://10.0.2.2:3000';
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://bumeran-backend-production.up.railway.app';
 
 const TOKEN_KEY = 'auth_token';
 
@@ -11,6 +11,7 @@ export interface UsuarioBackend {
   email: string;
   photo: string | null;
   telefono: string | null;
+  telefonoVerificado: boolean;
 }
 
 export interface AuthResponse {
@@ -37,8 +38,20 @@ export function getAuthHeaders(token: string): Record<string, string> {
   };
 }
 
+export async function eliminarCuenta(token: string): Promise<void> {
+  const response = await fetch(`${API_URL}/api/usuarios/me`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(body.message || 'No se pudo eliminar la cuenta');
+  }
+}
+
 export async function loginConGoogle(idToken: string): Promise<AuthResponse> {
-  const response = await fetch(`${API_URL}/api/auth/google`, {
+  const response = await fetch(`${API_URL}/api/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ idToken }),

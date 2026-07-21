@@ -15,6 +15,7 @@ interface AuthContextValue {
   cargando: boolean;
   sincronizar: (idToken: string) => Promise<void>;
   cerrarSesion: () => Promise<void>;
+  refrescarUsuario: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -38,6 +39,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUsuario(null);
   }, []);
 
+  const refrescarUsuario = useCallback(async () => {
+    const tokenGuardado = await obtenerToken();
+    if (!tokenGuardado) return;
+    const response = await fetch(
+      `${process.env.EXPO_PUBLIC_API_URL || 'https://bumeran-backend-production.up.railway.app'}/api/auth/me`,
+      { headers: { Authorization: `Bearer ${tokenGuardado}` } }
+    );
+    if (response.ok) {
+      const backendUsuario: UsuarioBackend = await response.json();
+      setUsuario(backendUsuario);
+    }
+  }, []);
+
   useEffect(() => {
     // Al arrancar, intentamos restaurar la sesión desde el token guardado.
     // El backend debe exponer GET /api/auth/me que valide el JWT y devuelva el usuario.
@@ -47,7 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!tokenGuardado) return;
 
         const response = await fetch(
-          `${process.env.EXPO_PUBLIC_API_URL || 'http://10.0.2.2:3000'}/api/auth/me`,
+          `${process.env.EXPO_PUBLIC_API_URL || 'https://bumeran-backend-production.up.railway.app'}/api/auth/me`,
           { headers: { Authorization: `Bearer ${tokenGuardado}` } }
         );
 
@@ -71,7 +85,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ usuario, usuarioId: usuario?.id ?? null, token, cargando, sincronizar, cerrarSesion }}
+      value={{ usuario, usuarioId: usuario?.id ?? null, token, cargando, sincronizar, cerrarSesion, refrescarUsuario }}
     >
       {children}
     </AuthContext.Provider>

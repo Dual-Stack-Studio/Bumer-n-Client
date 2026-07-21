@@ -8,13 +8,17 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
+import FooterLegal from '../../components/FooterLegal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 
 import { eliminarFavor, getFavores } from '../../api/favoresApi';
+import { getReviewsDeUsuario } from '../../api/reviewsApi';
+import { eliminarCuenta } from '../../api/usuariosApi';
 import { useAuth } from '../../context/AuthContext';
 import { Favor } from '../../types/favor';
+import { Review } from '../../types/review';
 import { useLanguage } from '../../context/LanguageContext';
 import { formatMessage } from '../../i18n/format';
 import type { Translation } from '../../i18n/translations';
@@ -34,10 +38,14 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const { t, language } = useLanguage();
-  const { usuario, usuarioId, cerrarSesion } = useAuth();
+  const { usuario, usuarioId, token, cerrarSesion } = useAuth();
 
   const [misPublicaciones, setMisPublicaciones] = useState<Favor[]>([]);
+  const [resenias, setResenias] = useState<Review[]>([]);
   const favoresOfrecidos = misPublicaciones.filter((f) => f.tipo === 'ofrezco').length;
+  const ratingPromedio = resenias.length
+    ? (resenias.reduce((sum, r) => sum + r.estrellas, 0) / resenias.length).toFixed(1)
+    : '—';
 
   useFocusEffect(
     useCallback(() => {
@@ -45,7 +53,10 @@ export default function ProfileScreen() {
         setMisPublicaciones([]);
         return;
       }
-      getFavores(language, usuarioId).then(setMisPublicaciones).catch(() => setMisPublicaciones([]));
+      getFavores(language).then(setMisPublicaciones).catch(() => setMisPublicaciones([]));
+      if (usuarioId) {
+        getReviewsDeUsuario(usuarioId).then(setResenias).catch(() => setResenias([]));
+      }
     }, [language, usuarioId])
   );
 
@@ -64,7 +75,7 @@ export default function ProfileScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await eliminarFavor(favor.id);
+              await eliminarFavor(favor.id, token ?? '');
               setMisPublicaciones((prev) => prev.filter((f) => f.id !== favor.id));
             } catch (error: any) {
               Alert.alert(t.profile.deleteTitle, error.message);
@@ -87,6 +98,37 @@ export default function ProfileScreen() {
     } catch (error: any) {
       Alert.alert(t.burgerMenu.logoutErrorTitle, formatMessage(t.burgerMenu.logoutErrorMessage, { message: error.message }));
     }
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      t.profile.deleteAccountTitle,
+      t.profile.deleteAccountMessage,
+      [
+        { text: t.common.cancel, style: 'cancel' },
+        {
+          text: t.profile.deleteAccountConfirm,
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await eliminarCuenta(token ?? '');
+              // Limpiar sesión local (best-effort en Google Sign-In)
+              try {
+                if (GoogleSignin.hasPreviousSignIn()) {
+                  await GoogleSignin.revokeAccess();
+                  await GoogleSignin.signOut();
+                }
+              } catch {}
+              await cerrarSesion();
+              Alert.alert('', t.profile.deleteAccountSuccess);
+              navigation.reset({ index: 0, routes: [{ name: 'Welcome' }] });
+            } catch (error: any) {
+              Alert.alert(t.profile.deleteAccountTitle, t.profile.deleteAccountError);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const avatarUri = usuario?.photo ?? undefined;
@@ -119,6 +161,25 @@ export default function ProfileScreen() {
           {email ? <Text style={styles.email}>{email}</Text> : null}
         </View>
 
+        {usuario && !usuario.telefonoVerificado && (
+          <TouchableOpacity
+            style={styles.verificationBanner}
+            onPress={() => navigation.navigate('VerificacionTelefono')}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.verificationBannerIcon}>📱</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.verificationBannerText}>{t.verificacion.profileBannerText}</Text>
+            </View>
+            <Text style={styles.verificationBannerArrow}>›</Text>
+          </TouchableOpacity>
+        )}
+        {usuario?.telefonoVerificado && (
+          <View style={styles.verifiedBadge}>
+            <Text style={styles.verifiedBadgeText}>{t.verificacion.verifiedBadge}</Text>
+          </View>
+        )}
+
         <View style={styles.statsRow}>
           <View style={styles.statBox}>
             <Text style={styles.statNumero}>{misPublicaciones.length}</Text>
@@ -127,6 +188,10 @@ export default function ProfileScreen() {
           <View style={styles.statBox}>
             <Text style={styles.statNumero}>{favoresOfrecidos}</Text>
             <Text style={styles.statLabel}>{t.profile.favoresOfrecidos}</Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={styles.statNumero}>⭐ {ratingPromedio}</Text>
+            <Text style={styles.statLabel}>{t.profile.valoracion}</Text>
           </View>
         </View>
 
@@ -157,9 +222,47 @@ export default function ProfileScreen() {
           <Text style={styles.sinPublicaciones}>{t.profile.sinPublicaciones}</Text>
         )}
 
+        <Text style={[styles.sectionTitle, { marginTop: 8 }]}>{t.profile.reseniasRecibidas}</Text>
+        {resenias.length === 0 ? (
+          <Text style={styles.sinPublicaciones}>{t.profile.sinResenias}</Text>
+        ) : (
+          resenias.map((r) => (
+            <View key={r.id} style={styles.reseniaCard}>
+              <View style={styles.reseniaHeader}>
+                <View style={styles.reseniaAvatar}>
+                  <Text style={styles.reseniaAvatarText}>
+                    {r.autorNombre.charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.reseniaAutor}>{r.autorNombre}</Text>
+                  <Text style={styles.reseniaFavor} numberOfLines={1}>{r.favorTitulo}</Text>
+                </View>
+                <View style={styles.reseniaEstrellas}>
+                  <Text style={styles.reseniaEstrellasText}>
+                    {'★'.repeat(r.estrellas)}{'☆'.repeat(5 - r.estrellas)}
+                  </Text>
+                </View>
+              </View>
+              {r.comentario ? (
+                <Text style={styles.reseniaComentario}>{r.comentario}</Text>
+              ) : null}
+              <Text style={styles.reseniaFecha}>
+                {new Date(r.creadoEn).toLocaleDateString()}
+              </Text>
+            </View>
+          ))
+        )}
+
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.8}>
           <Text style={styles.logoutButtonText}>{t.profile.logout}</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity style={styles.deleteAccountButton} onPress={handleDeleteAccount} activeOpacity={0.8}>
+          <Text style={styles.deleteAccountButtonText}>{t.profile.deleteAccount}</Text>
+        </TouchableOpacity>
+
+        <FooterLegal />
       </ScrollView>
     </View>
   );
@@ -337,6 +440,195 @@ const styles = StyleSheet.create({
   logoutButtonText: {
     color: '#ef4444',
     fontSize: 15,
+    fontWeight: '700',
+  },
+  deleteAccountButton: {
+    marginTop: 8,
+    paddingVertical: 14,
+    borderRadius: 16,
+    alignItems: 'center',
+  },
+  deleteAccountButtonText: {
+    color: '#94a3b8',
+    fontSize: 13,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
+  reseniaCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
+  },
+  reseniaHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 8,
+  },
+  reseniaAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#fef3c7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reseniaAvatarText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#e11d48',
+  },
+  reseniaAutor: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  reseniaFavor: {
+    fontSize: 12,
+    color: '#94a3b8',
+    fontWeight: '500',
+  },
+  reseniaEstrellas: {
+    alignSelf: 'flex-start',
+  },
+  reseniaEstrellasText: {
+    fontSize: 14,
+    color: '#f59e0b',
+    letterSpacing: 1,
+  },
+  reseniaComentario: {
+    fontSize: 13,
+    color: '#475569',
+    lineHeight: 18,
+    marginBottom: 6,
+  },
+  reseniaFecha: {
+    fontSize: 11,
+    color: '#94a3b8',
+    fontWeight: '500',
+  },
+
+  // ── FOOTER GDPR ───────────────────────────────────────────────
+  footerDivider: {
+    height: 1,
+    backgroundColor: '#f1f5f9',
+    marginVertical: 20,
+  },
+  footerSectionTitle: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#94a3b8',
+    letterSpacing: 1.2,
+    marginBottom: 12,
+  },
+  footerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    flexWrap: 'wrap',
+  },
+  footerIcon: {
+    fontSize: 14,
+    marginRight: 6,
+  },
+  footerLabel: {
+    fontSize: 13,
+    color: '#64748b',
+  },
+  footerLink: {
+    fontSize: 13,
+    color: '#e11d48',
+    fontWeight: '600',
+  },
+  footerText: {
+    fontSize: 13,
+    color: '#64748b',
+    lineHeight: 20,
+    marginBottom: 6,
+  },
+  footerBold: {
+    fontWeight: '700',
+    color: '#1e293b',
+  },
+  footerButtonsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 14,
+    marginBottom: 16,
+  },
+  footerButton: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 20,
+    paddingVertical: 10,
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+  },
+  footerButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#475569',
+  },
+  footerCopyright: {
+    fontSize: 12,
+    color: '#94a3b8',
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  footerCompliance: {
+    fontSize: 10,
+    color: '#cbd5e1',
+    textAlign: 'center',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  verificationBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff7ed',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#fed7aa',
+    padding: 14,
+    marginBottom: 16,
+    gap: 10,
+  },
+  verificationBannerIcon: {
+    fontSize: 20,
+  },
+  verificationBannerText: {
+    fontSize: 13,
+    color: '#c2410c',
+    fontWeight: '600',
+    lineHeight: 18,
+  },
+  verificationBannerArrow: {
+    fontSize: 20,
+    color: '#c2410c',
+    fontWeight: '700',
+  },
+  verifiedBadge: {
+    alignSelf: 'center',
+    backgroundColor: '#f0fdf4',
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+    marginBottom: 16,
+  },
+  verifiedBadgeText: {
+    fontSize: 13,
+    color: '#15803d',
     fontWeight: '700',
   },
 });

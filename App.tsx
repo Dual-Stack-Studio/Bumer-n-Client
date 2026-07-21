@@ -15,6 +15,9 @@ import PedirFavorScreen from "./src/screens/favores/flujo-pedir/PedirFavorScreen
 import ProfileScreen from "./src/screens/profile/ProfileScreen";
 import FavoritosScreen from "./src/screens/favoritos/FavoritosScreen";
 import NotificationsScreen from "./src/screens/notifications/NotificationsScreen";
+import ReviewScreen from "./src/screens/reviews/ReviewScreen";
+import ConexionesScreen from "./src/screens/conexiones/ConexionesScreen";
+import VerificacionTelefonoScreen from "./src/screens/auth/VerificacionTelefonoScreen";
 import { FavoritosProvider } from "./src/context/FavoritosContext";
 import { LanguageProvider } from "./src/context/LanguageContext";
 import { AuthProvider } from "./src/context/AuthContext";
@@ -28,6 +31,9 @@ export type RootStackParamList = {
   Profile: undefined;
   Favoritos: undefined;
   Notifications: undefined;
+  Review: { favor: any };
+  Conexiones: undefined;
+  VerificacionTelefono: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -63,6 +69,10 @@ export default function App() {
               name="Notifications"
               component={NotificationsScreen}
             />
+
+            <Stack.Screen name="Review" component={ReviewScreen} />
+            <Stack.Screen name="Conexiones" component={ConexionesScreen} />
+            <Stack.Screen name="VerificacionTelefono" component={VerificacionTelefonoScreen} />
 
             <Stack.Group screenOptions={{ presentation: "modal" }}>
               <Stack.Screen name="Login" component={LoginScreen} />
