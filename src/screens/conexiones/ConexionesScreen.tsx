@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, TouchableOpacity, FlatList,
   Image, ActivityIndicator, RefreshControl, Alert,
 } from 'react-native';
+import FooterLegal from '../../components/FooterLegal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
@@ -200,6 +201,7 @@ export default function ConexionesScreen() {
           keyExtractor={item => item.id}
           renderItem={renderItem}
           contentContainerStyle={lista.length === 0 ? styles.emptyContainer : styles.listContent}
+          ListFooterComponent={lista.length > 0 ? <FooterLegal /> : null}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}

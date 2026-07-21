@@ -7,11 +7,8 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
-  Linking,
 } from 'react-native';
-
-const PRIVACY_POLICY_URL = 'https://dual-stack-studio.github.io/App-cadenas-de-favores-client/privacidad';
-const TERMS_URL = 'https://dual-stack-studio.github.io/App-cadenas-de-favores-client/terminos';
+import FooterLegal from '../../components/FooterLegal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
@@ -265,60 +262,7 @@ export default function ProfileScreen() {
           <Text style={styles.deleteAccountButtonText}>{t.profile.deleteAccount}</Text>
         </TouchableOpacity>
 
-        {/* ── FOOTER GDPR ─────────────────────────────────────── */}
-        <View style={styles.footerDivider} />
-
-        <Text style={styles.footerSectionTitle}>{t.footer.dataSourcesTitle}</Text>
-        <View style={styles.footerRow}>
-          <Text style={styles.footerIcon}>🗺️</Text>
-          <Text style={styles.footerLabel}>{t.footer.dataSourceMap} </Text>
-          <Text style={styles.footerLink} onPress={() => Linking.openURL('https://maps.google.com/intl/en_us/help/terms_maps.html')}>
-            {t.footer.dataSourceMapLink}
-          </Text>
-        </View>
-        <View style={styles.footerRow}>
-          <Text style={styles.footerIcon}>🔐</Text>
-          <Text style={styles.footerLabel}>{t.footer.dataSourceAuth} </Text>
-          <Text style={styles.footerLink} onPress={() => Linking.openURL('https://policies.google.com/privacy')}>
-            {t.footer.dataSourceAuthLink}
-          </Text>
-        </View>
-        <View style={styles.footerRow}>
-          <Text style={styles.footerIcon}>💬</Text>
-          <Text style={styles.footerLabel}>{t.footer.dataSourceContact} </Text>
-          <Text style={styles.footerLink} onPress={() => Linking.openURL('https://www.whatsapp.com/legal/privacy-policy')}>
-            {t.footer.dataSourceContactLink}
-          </Text>
-        </View>
-
-        <View style={styles.footerDivider} />
-
-        <Text style={styles.footerSectionTitle}>{t.footer.privacyTitle}</Text>
-        <Text style={styles.footerText}>{t.footer.privacyText}</Text>
-        <Text style={styles.footerText}>
-          {t.footer.gdprBefore}{' '}
-          <Text style={styles.footerBold}>{t.footer.gdprRights}</Text>
-          {' '}{t.footer.gdprAfter}
-        </Text>
-        <Text
-          style={styles.footerLink}
-          onPress={() => Linking.openURL(`mailto:${t.footer.contactEmail}`)}
-        >
-          {t.footer.contactEmail}
-        </Text>
-        <Text style={[styles.footerText, { marginTop: 10 }]}>{t.footer.dpaText}</Text>
-
-        <View style={styles.footerButtonsRow}>
-          <TouchableOpacity style={styles.footerButton} onPress={() => Linking.openURL(PRIVACY_POLICY_URL)} activeOpacity={0.8}>
-            <Text style={styles.footerButtonText}>{t.footer.privacyPolicy}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.footerButton} onPress={() => Linking.openURL(TERMS_URL)} activeOpacity={0.8}>
-            <Text style={styles.footerButtonText}>{t.footer.termsOfUse}</Text>
-          </TouchableOpacity>
-        </View>
-
-        <Text style={styles.footerCopyright}>{t.footer.copyright}</Text>
-        <Text style={styles.footerCompliance}>{t.footer.gdprCompliant}</Text>
+        <FooterLegal />
       </ScrollView>
     </View>
   );

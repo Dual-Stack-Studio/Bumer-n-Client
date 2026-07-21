@@ -5,6 +5,7 @@ import { useNavigation } from '@react-navigation/native';
 
 import { getMockNotificaciones } from '../../data/mockNotificaciones';
 import { useLanguage } from '../../context/LanguageContext';
+import FooterLegal from '../../components/FooterLegal';
 
 export default function NotificationsScreen() {
   const insets = useSafeAreaInsets();
@@ -25,6 +26,7 @@ export default function NotificationsScreen() {
         data={getMockNotificaciones(t)}
         keyExtractor={(item) => item.id}
         contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(insets.bottom, 24) + 16 }]}
+        ListFooterComponent={<FooterLegal />}
         renderItem={({ item }) => (
           <View style={[styles.card, !item.leida && styles.cardNoLeida]}>
             <Text style={styles.cardIcon}>{item.icono}</Text>

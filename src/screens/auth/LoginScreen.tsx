@@ -31,11 +31,11 @@ export default function LoginScreen({ navigation, route }: any) {
       const nombreUsuario = response.data?.user?.name;
       alert(formatMessage(t.login.greeting, { name: nombreUsuario || t.login.defaultName }));
 
-      // Navegamos inmediatamente — no esperamos al backend para no bloquear el flujo.
+      // Reseteamos el stack completo para que el botón "atrás" no lleve a Welcome.
       if (redirectTo) {
-        navigation.navigate(redirectTo);
+        navigation.reset({ index: 1, routes: [{ name: 'Main' }, { name: redirectTo }] });
       } else {
-        navigation.navigate('Main');
+        navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
       }
 
       // Sincronizamos con el backend en segundo plano.
