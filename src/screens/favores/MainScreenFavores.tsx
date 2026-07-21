@@ -230,6 +230,21 @@ export default function MainScreen() {
         ))}
       </MapView>
 
+      <TouchableOpacity
+        style={styles.myLocationBtn}
+        onPress={() =>
+          mapRef.current?.animateToRegion({
+            latitude: miUbicacion.latitude,
+            longitude: miUbicacion.longitude,
+            latitudeDelta: 0.02,
+            longitudeDelta: 0.02,
+          }, 600)
+        }
+        activeOpacity={0.8}
+      >
+        <Text style={styles.myLocationIcon}>📍</Text>
+      </TouchableOpacity>
+
       <NavBar
         busqueda={busqueda}
         setBusqueda={setBusqueda}
@@ -496,6 +511,26 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#92785f',
     fontWeight: '600',
+  },
+  myLocationBtn: {
+    position: 'absolute',
+    right: 16,
+    bottom: '22%',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 5,
+    zIndex: 10,
+  },
+  myLocationIcon: {
+    fontSize: 22,
   },
   cardDesc: {
     color: '#64748b',
