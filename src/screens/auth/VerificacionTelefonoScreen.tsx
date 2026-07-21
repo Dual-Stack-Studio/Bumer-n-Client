@@ -21,7 +21,7 @@ type Paso = 'telefono' | 'codigo' | 'exito';
 export default function VerificacionTelefonoScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
-  const { token, usuario } = useAuth();
+  const { token, usuario, refrescarUsuario } = useAuth();
   const { t } = useLanguage();
 
   const [paso, setPaso] = useState<Paso>('telefono');
@@ -51,6 +51,7 @@ export default function VerificacionTelefonoScreen() {
     setCargando(true);
     try {
       await confirmarCodigo(codigo.trim(), token ?? '');
+      await refrescarUsuario();
       setPaso('exito');
     } catch (e: any) {
       Alert.alert('Error', t.verificacion.errorVerify);
@@ -67,7 +68,7 @@ export default function VerificacionTelefonoScreen() {
           <Text style={styles.exitoTitle}>{t.verificacion.successTitle}</Text>
           <Text style={styles.exitoSubtitle}>{t.verificacion.successSubtitle}</Text>
           <TouchableOpacity
-            style={styles.primaryButton}
+            style={[styles.primaryButton, { alignSelf: 'stretch' }]}
             onPress={() => navigation.goBack()}
           >
             <Text style={styles.primaryButtonText}>{t.verificacion.continuarBtn}</Text>
@@ -244,7 +245,8 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 40,
+    paddingHorizontal: 24,
+    width: '100%',
   },
   exitoIcon: {
     fontSize: 64,

@@ -15,6 +15,7 @@ interface AuthContextValue {
   cargando: boolean;
   sincronizar: (idToken: string) => Promise<void>;
   cerrarSesion: () => Promise<void>;
+  refrescarUsuario: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -36,6 +37,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await borrarToken();
     setToken(null);
     setUsuario(null);
+  }, []);
+
+  const refrescarUsuario = useCallback(async () => {
+    const tokenGuardado = await obtenerToken();
+    if (!tokenGuardado) return;
+    const response = await fetch(
+      `${process.env.EXPO_PUBLIC_API_URL || 'https://bumeran-backend-production.up.railway.app'}/api/auth/me`,
+      { headers: { Authorization: `Bearer ${tokenGuardado}` } }
+    );
+    if (response.ok) {
+      const backendUsuario: UsuarioBackend = await response.json();
+      setUsuario(backendUsuario);
+    }
   }, []);
 
   useEffect(() => {
@@ -71,7 +85,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ usuario, usuarioId: usuario?.id ?? null, token, cargando, sincronizar, cerrarSesion }}
+      value={{ usuario, usuarioId: usuario?.id ?? null, token, cargando, sincronizar, cerrarSesion, refrescarUsuario }}
     >
       {children}
     </AuthContext.Provider>
