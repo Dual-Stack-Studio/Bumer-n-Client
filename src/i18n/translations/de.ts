@@ -141,6 +141,10 @@ const de: Translation = {
     alertFillRequired: 'Bitte fülle Titel und Beschreibung aus.',
     alertUpdated: 'Dein Beitrag wurde erfolgreich aktualisiert!',
     alertCreated: 'Dein Beitrag wurde erfolgreich erstellt!',
+    fotosLabel: 'Fotos (optional)',
+    fotosAgregar: 'Foto hinzufügen',
+    fotosHint: 'Bis zu 4 Fotos. Hilf deinen Nachbarn, deinen Beitrag besser zu verstehen.',
+    fotosCargando: 'Fotos werden hochgeladen...',
     alertSaveError: 'Beitrag konnte nicht gespeichert werden: {{message}}',
   },
   favorHelpers: {

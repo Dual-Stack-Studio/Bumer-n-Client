@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   View,
   Text,
@@ -6,9 +6,13 @@ import {
   Image,
   TouchableOpacity,
   ScrollView,
+  FlatList,
+  Dimensions,
   Linking,
   Alert,
 } from "react-native";
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { RootStackParamList } from "../../../App";
@@ -49,6 +53,7 @@ export default function DetailScreen() {
   const route = useRoute<RouteProp<RootStackParamList, "Detail">>();
   const { favor } = route.params;
   const [showSafety, setShowSafety] = useState(false);
+  const [fotoActiva, setFotoActiva] = useState(0);
   const { esFavorito, toggleFavorito } = useFavoritos();
   const { t } = useLanguage();
   const { usuario } = useAuth();
@@ -76,6 +81,9 @@ export default function DetailScreen() {
   const estadoBadge = getEstadoBadge(favor, t);
   const imagenPlaceholder =
     "https://images.unsplash.com/photo-1504148455328-c376907d081c?q=80&w=800&auto=format&fit=crop";
+  const galeria: string[] = (favor.fotos && favor.fotos.length > 0)
+    ? favor.fotos
+    : [favor.imagen ?? imagenPlaceholder];
   const formatearFecha = (fechaISO: string) => {
     const ahora = new Date();
     const fecha = new Date(fechaISO);
@@ -89,7 +97,27 @@ export default function DetailScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.imageContainer}>
-        <Image source={{ uri: favor.imagen || imagenPlaceholder }} style={styles.image} />
+        <FlatList
+          data={galeria}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          keyExtractor={(_, i) => String(i)}
+          onMomentumScrollEnd={(e) => {
+            const index = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
+            setFotoActiva(index);
+          }}
+          renderItem={({ item }) => (
+            <Image source={{ uri: item }} style={styles.image} />
+          )}
+        />
+        {galeria.length > 1 && (
+          <View style={styles.dotsContainer}>
+            {galeria.map((_, i) => (
+              <View key={i} style={[styles.dot, i === fotoActiva && styles.dotActivo]} />
+            ))}
+          </View>
+        )}
         <TouchableOpacity
           style={[styles.backButton, { top: Math.max(insets.top, 20) }]}
           onPress={() => navigation.goBack()}
@@ -195,9 +223,28 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   image: {
-    width: "100%",
+    width: SCREEN_WIDTH,
     height: "100%",
     resizeMode: "cover",
+  },
+  dotsContainer: {
+    position: "absolute",
+    bottom: 10,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 6,
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "rgba(255,255,255,0.5)",
+  },
+  dotActivo: {
+    backgroundColor: "#ffffff",
+    width: 18,
   },
   backButton: {
     position: "absolute",

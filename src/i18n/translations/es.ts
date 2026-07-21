@@ -139,6 +139,10 @@ const es = {
     alertFillRequired: 'Por favor, completa el título y la descripción.',
     alertUpdated: '¡Tu publicación fue actualizada con éxito!',
     alertCreated: '¡Tu publicación fue creada con éxito!',
+    fotosLabel: 'Fotos (opcional)',
+    fotosAgregar: 'Agregar foto',
+    fotosHint: 'Hasta 4 fotos. Ayudá a tus vecinos a entender mejor tu publicación.',
+    fotosCargando: 'Subiendo fotos...',
     alertSaveError: 'No se pudo guardar la publicación: {{message}}',
   },
   favorHelpers: {

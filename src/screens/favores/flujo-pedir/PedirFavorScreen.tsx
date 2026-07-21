@@ -7,22 +7,28 @@ import {
   TouchableOpacity,
   ScrollView,
   KeyboardAvoidingView,
-  Platform
+  Platform,
+  Image,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import * as Location from 'expo-location';
+import * as ImagePicker from 'expo-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRoute, RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../../../../App';
 
-// Importamos tu nuevo menú de hamburguesa con opción de logout
 import BurgerMenu from '../components/BurgerMenu';
 import { actualizarFavor, crearFavor } from '../../../api/favoresApi';
 import { CATEGORIAS } from '../../../data/categories';
 import { getOpcionesExpiracion } from '../../../utils/favorHelpers';
+import { subirImagenes } from '../../../utils/cloudinary';
 import { Favor } from '../../../types/favor';
 import { useAuth } from '../../../context/AuthContext';
 import { useLanguage } from '../../../context/LanguageContext';
 import { formatMessage } from '../../../i18n/format';
+
+const MAX_FOTOS = 4;
 
 export default function PedirFavorScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
@@ -32,7 +38,6 @@ export default function PedirFavorScreen({ navigation }: any) {
   const { t } = useLanguage();
   const { token } = useAuth();
 
-  // Tipos de publicación disponibles
   const TIPOS_PUBLICACION: { id: Favor['tipo']; label: string; icon: string }[] = [
     { id: 'necesito', label: t.pedirFavor.tipoNecesito, icon: '🙋' },
     { id: 'ofrezco', label: t.pedirFavor.tipoOfrezco, icon: '🤝' },
@@ -40,13 +45,13 @@ export default function PedirFavorScreen({ navigation }: any) {
   ];
   const OPCIONES_EXPIRACION = getOpcionesExpiracion(t);
 
-  // Estados del formulario
   const [tipoSeleccionado, setTipoSeleccionado] = useState<Favor['tipo']>(favorEditar?.tipo ?? 'necesito');
   const [titulo, setTitulo] = useState(favorEditar?.titulo ?? '');
   const [descripcion, setDescripcion] = useState(favorEditar?.descripcion ?? '');
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState(favorEditar?.categoria ?? CATEGORIAS[0].label);
-  const [expiracionSeleccionada, setExpiracionSeleccionada] = useState(OPCIONES_EXPIRACION[2]); // 7 días
+  const [expiracionSeleccionada, setExpiracionSeleccionada] = useState(OPCIONES_EXPIRACION[2]);
   const [telefono, setTelefono] = useState(favorEditar?.telefonoContacto ?? '');
+  const [fotos, setFotos] = useState<string[]>(favorEditar?.fotos ?? []);
   const [publicando, setPublicando] = useState(false);
   const [ubicacion, setUbicacion] = useState<{ latitude: number; longitude: number } | null>(null);
   const [errorUbicacion, setErrorUbicacion] = useState<string | null>(null);
@@ -54,46 +59,72 @@ export default function PedirFavorScreen({ navigation }: any) {
   useEffect(() => {
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
-      console.log('[Location] permission status:', status);
       if (status !== 'granted') {
         setErrorUbicacion(t.pedirFavor.locationPermissionDenied ?? 'Permiso de ubicación denegado');
         return;
       }
       try {
         let ultima: Location.LocationObject | null = null;
-        try {
-          ultima = await Location.getLastKnownPositionAsync({});
-        } catch {
-          // El servicio aún no tiene posición guardada — continuamos con getCurrentPositionAsync
-        }
-
+        try { ultima = await Location.getLastKnownPositionAsync({}); } catch {}
         if (ultima) {
-          console.log('[Location] last known:', ultima.coords.latitude, ultima.coords.longitude);
           setUbicacion({ latitude: ultima.coords.latitude, longitude: ultima.coords.longitude });
           return;
         }
-
         const loc = await Promise.race([
           Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
           new Promise<never>((_, reject) =>
             setTimeout(() => reject(new Error('Tiempo de espera agotado al obtener ubicación')), 10000)
           ),
         ]);
-        console.log('[Location] coords:', loc.coords.latitude, loc.coords.longitude);
         setUbicacion({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
       } catch (e: any) {
-        console.warn('[Location] error:', e.message);
         setErrorUbicacion(e.message);
       }
     })();
   }, []);
+
+  const handleAgregarFoto = async () => {
+    if (fotos.length >= MAX_FOTOS) return;
+
+    Alert.alert(t.pedirFavor.fotosLabel, undefined, [
+      {
+        text: '📷 Cámara',
+        onPress: async () => {
+          const { status } = await ImagePicker.requestCameraPermissionsAsync();
+          if (status !== 'granted') return;
+          const result = await ImagePicker.launchCameraAsync({
+            quality: 0.8,
+            allowsEditing: true,
+            aspect: [4, 3],
+          });
+          if (!result.canceled) setFotos(prev => [...prev, result.assets[0].uri]);
+        },
+      },
+      {
+        text: '🖼️ Galería',
+        onPress: async () => {
+          const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['images'],
+            quality: 0.8,
+            allowsEditing: true,
+            aspect: [4, 3],
+          });
+          if (!result.canceled) setFotos(prev => [...prev, result.assets[0].uri]);
+        },
+      },
+      { text: t.common.cancel, style: 'cancel' },
+    ]);
+  };
+
+  const handleEliminarFoto = (index: number) => {
+    setFotos(prev => prev.filter((_, i) => i !== index));
+  };
 
   const handlePublicar = async () => {
     if (!titulo.trim() || !descripcion.trim()) {
       alert(t.pedirFavor.alertFillRequired);
       return;
     }
-
     if (!ubicacion) {
       alert(t.pedirFavor.locationNotReady ?? 'Todavía obteniendo tu ubicación, intentá de nuevo en un momento.');
       return;
@@ -101,6 +132,12 @@ export default function PedirFavorScreen({ navigation }: any) {
 
     setPublicando(true);
     try {
+      // Subir solo las fotos locales (las que ya tienen URL de cloudinary se pasan directo)
+      const fotasLocales = fotos.filter(f => f.startsWith('file://') || f.startsWith('content://'));
+      const fotosRemoto = fotos.filter(f => !f.startsWith('file://') && !f.startsWith('content://'));
+      const fotosSubidas = fotasLocales.length > 0 ? await subirImagenes(fotasLocales) : [];
+      const fotasFinales = [...fotosRemoto, ...fotosSubidas];
+
       if (esEdicion && favorEditar) {
         await actualizarFavor(favorEditar.id, {
           tipo: tipoSeleccionado,
@@ -108,15 +145,14 @@ export default function PedirFavorScreen({ navigation }: any) {
           descripcion: descripcion.trim(),
           categoria: categoriaSeleccionada,
           telefonoContacto: telefono.trim() || undefined,
+          fotos: fotasFinales,
         }, token!);
-
         alert(t.pedirFavor.alertUpdated);
         navigation.navigate('Profile');
         return;
       }
 
       const expiraEn = new Date(Date.now() + expiracionSeleccionada.horas * 60 * 60 * 1000).toISOString();
-
       await crearFavor({
         tipo: tipoSeleccionado,
         titulo: titulo.trim(),
@@ -126,11 +162,10 @@ export default function PedirFavorScreen({ navigation }: any) {
         longitude: ubicacion.longitude,
         expiraEn,
         telefonoContacto: telefono.trim() || undefined,
+        fotos: fotasFinales,
       }, token!);
 
       alert(t.pedirFavor.alertCreated);
-
-      // Regresa a la pantalla principal (Mapa)
       navigation.navigate('Main');
     } catch (error: any) {
       alert(formatMessage(t.pedirFavor.alertSaveError, { message: error.message }));
@@ -139,31 +174,35 @@ export default function PedirFavorScreen({ navigation }: any) {
     }
   };
 
+  const labelBoton = publicando
+    ? (fotos.some(f => f.startsWith('file://') || f.startsWith('content://'))
+        ? t.pedirFavor.fotosCargando
+        : t.pedirFavor.saving)
+    : esEdicion
+      ? t.pedirFavor.saveChanges
+      : t.pedirFavor.publish;
+
   return (
-    <KeyboardAvoidingView 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
-      {/* HEADER CON BOTÓN VOLVER Y BURGER MENU INTEGRADO */}
       <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) }]}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <Text style={styles.backIcon}>⬅️</Text>
         </TouchableOpacity>
-        
         <Text style={styles.headerTitle}>{esEdicion ? t.pedirFavor.editTitle : t.pedirFavor.createTitle}</Text>
-        
-        {/* El BurgerMenu ahora balancea de forma nativa la esquina derecha del header */}
         <BurgerMenu />
       </View>
 
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.welcomeText}>{t.pedirFavor.welcomeText}</Text>
 
-        {/* SECCIÓN 0: TIPO DE PUBLICACIÓN */}
+        {/* TIPO */}
         <View style={styles.inputGroup}>
           <Text style={styles.label}>{t.pedirFavor.whatToDo}</Text>
           <View style={styles.tiposContainer}>
@@ -177,16 +216,14 @@ export default function PedirFavorScreen({ navigation }: any) {
                   activeOpacity={0.7}
                 >
                   <Text style={styles.tipoIcon}>{tipo.icon}</Text>
-                  <Text style={[styles.tipoLabel, esActivo && styles.tipoLabelActivo]}>
-                    {tipo.label}
-                  </Text>
+                  <Text style={[styles.tipoLabel, esActivo && styles.tipoLabelActivo]}>{tipo.label}</Text>
                 </TouchableOpacity>
               );
             })}
           </View>
         </View>
 
-        {/* SECCIÓN 1: TÍTULO */}
+        {/* TÍTULO */}
         <View style={styles.inputGroup}>
           <Text style={styles.label}>{t.pedirFavor.tituloLabel}</Text>
           <TextInput
@@ -199,7 +236,7 @@ export default function PedirFavorScreen({ navigation }: any) {
           />
         </View>
 
-        {/* SECCIÓN 2: CATEGORÍAS */}
+        {/* CATEGORÍAS */}
         <View style={styles.inputGroup}>
           <Text style={styles.label}>{t.pedirFavor.categoriaLabel}</Text>
           <View style={styles.categoriesContainer}>
@@ -221,7 +258,7 @@ export default function PedirFavorScreen({ navigation }: any) {
           </View>
         </View>
 
-        {/* SECCIÓN 3.5: TIEMPO DE EXPIRACIÓN */}
+        {/* EXPIRACIÓN */}
         <View style={styles.inputGroup}>
           <Text style={styles.label}>{t.pedirFavor.expiracionLabel}</Text>
           <View style={styles.categoriesContainer}>
@@ -234,16 +271,14 @@ export default function PedirFavorScreen({ navigation }: any) {
                   onPress={() => setExpiracionSeleccionada(opcion)}
                   activeOpacity={0.7}
                 >
-                  <Text style={[styles.badgeText, esActiva && styles.badgeTextActiva]}>
-                    {opcion.label}
-                  </Text>
+                  <Text style={[styles.badgeText, esActiva && styles.badgeTextActiva]}>{opcion.label}</Text>
                 </TouchableOpacity>
               );
             })}
           </View>
         </View>
 
-        {/* SECCIÓN 3: DESCRIPCIÓN */}
+        {/* DESCRIPCIÓN */}
         <View style={styles.inputGroup}>
           <Text style={styles.label}>{t.pedirFavor.descripcionLabel}</Text>
           <TextInput
@@ -258,7 +293,43 @@ export default function PedirFavorScreen({ navigation }: any) {
           />
         </View>
 
-        {/* SECCIÓN 4: TELÉFONO DE CONTACTO */}
+        {/* FOTOS */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>📷 {t.pedirFavor.fotosLabel}</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.fotosScroll}
+          >
+            {fotos.map((uri, index) => (
+              <View key={index} style={styles.fotoThumb}>
+                <Image source={{ uri }} style={styles.fotoImage} />
+                {publicando ? (
+                  <View style={styles.fotoOverlay}>
+                    <ActivityIndicator size="small" color="#ffffff" />
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.fotoRemove}
+                    onPress={() => handleEliminarFoto(index)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Text style={styles.fotoRemoveText}>×</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            ))}
+            {fotos.length < MAX_FOTOS && !publicando && (
+              <TouchableOpacity style={styles.fotoAdd} onPress={handleAgregarFoto} activeOpacity={0.7}>
+                <Text style={styles.fotoAddIcon}>+</Text>
+                <Text style={styles.fotoAddLabel}>{t.pedirFavor.fotosAgregar}</Text>
+              </TouchableOpacity>
+            )}
+          </ScrollView>
+          <Text style={styles.hint}>{t.pedirFavor.fotosHint}</Text>
+        </View>
+
+        {/* TELÉFONO */}
         <View style={styles.inputGroup}>
           <Text style={styles.label}>{t.pedirFavor.telefonoLabel}</Text>
           <TextInput
@@ -270,10 +341,10 @@ export default function PedirFavorScreen({ navigation }: any) {
             keyboardType="phone-pad"
             maxLength={20}
           />
-          <Text style={styles.telefonoHint}>{t.pedirFavor.telefonoHint}</Text>
+          <Text style={styles.hint}>{t.pedirFavor.telefonoHint}</Text>
         </View>
 
-        {/* SECCIÓN 5: INFORMACIÓN DE UBICACIÓN AUTOMÁTICA */}
+        {/* UBICACIÓN */}
         <View style={styles.locationInfoBox}>
           <Text style={styles.locationIcon}>📍</Text>
           <View style={styles.locationTextContainer}>
@@ -285,16 +356,12 @@ export default function PedirFavorScreen({ navigation }: any) {
                 {ubicacion.latitude.toFixed(5)}, {ubicacion.longitude.toFixed(5)}
               </Text>
             ) : (
-              <Text style={styles.locationSubtitle}>
-                {t.pedirFavor.locationLoading ?? 'Obteniendo ubicación…'}
-              </Text>
+              <Text style={styles.locationSubtitle}>{t.pedirFavor.locationLoading ?? 'Obteniendo ubicación…'}</Text>
             )}
           </View>
         </View>
-
       </ScrollView>
 
-      {/* BOTÓN FIJO AL FINAL */}
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
         <TouchableOpacity
           style={[styles.submitButton, publicando && styles.submitButtonDisabled]}
@@ -302,55 +369,19 @@ export default function PedirFavorScreen({ navigation }: any) {
           activeOpacity={0.8}
           disabled={publicando}
         >
-          <Text style={styles.submitButtonText}>
-            {publicando
-              ? t.pedirFavor.saving
-              : esEdicion
-                ? t.pedirFavor.saveChanges
-                : t.pedirFavor.publish}
-          </Text>
+          {publicando ? (
+            <ActivityIndicator color="#ffffff" />
+          ) : (
+            <Text style={styles.submitButtonText}>{labelBoton}</Text>
+          )}
         </TouchableOpacity>
       </View>
-
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-  },
-  tiposContainer: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  tipoCard: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  tipoCardActivo: {
-    backgroundColor: '#fffbeb',
-    borderColor: '#e11d48',
-  },
-  tipoIcon: {
-    fontSize: 24,
-    marginBottom: 6,
-  },
-  tipoLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#64748b',
-    textAlign: 'center',
-  },
-  tipoLabelActivo: {
-    color: '#e11d48',
-  },
+  container: { flex: 1, backgroundColor: '#ffffff' },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -362,39 +393,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
   },
   backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 44, height: 44, borderRadius: 22,
+    alignItems: 'center', justifyContent: 'center',
     backgroundColor: '#f8fafc',
   },
-  backIcon: {
-    fontSize: 16,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#0f172a',
-  },
-  scrollContent: {
-    padding: 24,
-  },
-  welcomeText: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#0f172a',
-    marginBottom: 24,
-  },
-  inputGroup: {
-    marginBottom: 24,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#475569',
-    marginBottom: 8,
-  },
+  backIcon: { fontSize: 16 },
+  headerTitle: { fontSize: 18, fontWeight: '700', color: '#0f172a' },
+  scrollContent: { padding: 24 },
+  welcomeText: { fontSize: 20, fontWeight: '800', color: '#0f172a', marginBottom: 24 },
+  inputGroup: { marginBottom: 24 },
+  label: { fontSize: 14, fontWeight: '700', color: '#475569', marginBottom: 8 },
   input: {
     backgroundColor: '#f8fafc',
     borderWidth: 1,
@@ -405,17 +413,22 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#0f172a',
   },
-  textArea: {
-    height: 120,
-    textAlignVertical: 'top',
-    paddingTop: 14,
+  textArea: { height: 120, textAlignVertical: 'top', paddingTop: 14 },
+  tiposContainer: { flexDirection: 'row', gap: 8 },
+  tipoCard: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
   },
-  categoriesContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 4,
-  },
+  tipoCardActivo: { backgroundColor: '#fffbeb', borderColor: '#e11d48' },
+  tipoIcon: { fontSize: 24, marginBottom: 6 },
+  tipoLabel: { fontSize: 12, fontWeight: '700', color: '#64748b', textAlign: 'center' },
+  tipoLabelActivo: { color: '#e11d48' },
+  categoriesContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
   badge: {
     backgroundColor: '#f1f5f9',
     paddingHorizontal: 14,
@@ -424,25 +437,48 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e2e8f0',
   },
-  badgeActiva: {
-    backgroundColor: '#fef3c7',
-    borderColor: '#e11d48',
+  badgeActiva: { backgroundColor: '#fef3c7', borderColor: '#e11d48' },
+  badgeText: { fontSize: 13, color: '#64748b', fontWeight: '600' },
+  badgeTextActiva: { color: '#e11d48', fontWeight: '700' },
+  // Fotos
+  fotosScroll: { gap: 10, paddingVertical: 4 },
+  fotoThumb: {
+    width: 96, height: 96,
+    borderRadius: 12,
+    overflow: 'hidden',
+    position: 'relative',
   },
-  badgeText: {
-    fontSize: 13,
-    color: '#64748b',
-    fontWeight: '600',
+  fotoImage: { width: '100%', height: '100%' },
+  fotoOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  badgeTextActiva: {
-    color: '#e11d48',
-    fontWeight: '700',
+  fotoRemove: {
+    position: 'absolute',
+    top: 4, right: 4,
+    width: 22, height: 22,
+    borderRadius: 11,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  telefonoHint: {
-    fontSize: 12,
-    color: '#94a3b8',
-    marginTop: 6,
-    lineHeight: 16,
+  fotoRemoveText: { color: '#ffffff', fontSize: 14, fontWeight: '700', lineHeight: 18 },
+  fotoAdd: {
+    width: 96, height: 96,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    borderStyle: 'dashed',
+    backgroundColor: '#f8fafc',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
   },
+  fotoAddIcon: { fontSize: 24, color: '#94a3b8' },
+  fotoAddLabel: { fontSize: 11, color: '#94a3b8', fontWeight: '600' },
+  hint: { fontSize: 12, color: '#94a3b8', marginTop: 6, lineHeight: 16 },
   locationInfoBox: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -453,23 +489,10 @@ const styles = StyleSheet.create({
     borderColor: '#fef3c7',
     marginTop: 8,
   },
-  locationIcon: {
-    fontSize: 22,
-    marginRight: 12,
-  },
-  locationTextContainer: {
-    flex: 1,
-  },
-  locationTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#92400e',
-  },
-  locationSubtitle: {
-    fontSize: 12,
-    color: '#d97706',
-    marginTop: 2,
-  },
+  locationIcon: { fontSize: 22, marginRight: 12 },
+  locationTextContainer: { flex: 1 },
+  locationTitle: { fontSize: 14, fontWeight: '700', color: '#92400e' },
+  locationSubtitle: { fontSize: 12, color: '#d97706', marginTop: 2 },
   footer: {
     paddingHorizontal: 24,
     paddingTop: 12,
@@ -488,12 +511,6 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
-  submitButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  submitButtonDisabled: {
-    opacity: 0.6,
-  },
+  submitButtonText: { color: '#ffffff', fontSize: 16, fontWeight: '700' },
+  submitButtonDisabled: { opacity: 0.6 },
 });

@@ -12,6 +12,7 @@ export interface NuevoFavorInput {
   longitude: number;
   expiraEn?: string;
   telefonoContacto?: string;
+  fotos?: string[];
 }
 
 export interface ActualizarFavorInput {
@@ -24,6 +25,7 @@ export interface ActualizarFavorInput {
   estado?: Favor['estado'];
   expiraEn?: string;
   telefonoContacto?: string;
+  fotos?: string[];
 }
 
 export async function getFavores(_language: Language = 'es'): Promise<Favor[]> {

@@ -13,6 +13,7 @@ export interface Favor {
   expiraEn?: string;
   distancia?: number;
   telefonoContacto?: string;
+  fotos?: string[];
   userId?: string;
   imagen?: string;
 }

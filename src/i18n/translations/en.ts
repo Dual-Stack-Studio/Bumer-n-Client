@@ -141,6 +141,10 @@ const en: Translation = {
     alertFillRequired: 'Please fill in the title and description.',
     alertUpdated: 'Your post was updated successfully!',
     alertCreated: 'Your post was created successfully!',
+    fotosLabel: 'Photos (optional)',
+    fotosAgregar: 'Add photo',
+    fotosHint: 'Up to 4 photos. Help your neighbors understand your post better.',
+    fotosCargando: 'Uploading photos...',
     alertSaveError: 'Could not save the post: {{message}}',
   },
   favorHelpers: {
