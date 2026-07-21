@@ -1,11 +1,11 @@
-# 🔁 Bumerán
+# 🪃 Bumerán
 
 > **Lo que das, vuelve.** — What you give, comes back.
 > A neighborhood favor-exchange app: offer help, ask for it, or give things away — filtered by GPS and category.
 
 <p align="center">
   <img src="https://img.shields.io/badge/React_Native-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React Native">
-  <img src="https://img.shields.io/badge/Expo_SDK_56-000020?style=for-the-badge&logo=expo&logoColor=white" alt="Expo SDK 56">
+  <img src="https://img.shields.io/badge/Expo_SDK_54-000020?style=for-the-badge&logo=expo&logoColor=white" alt="Expo SDK 54">
   <img src="https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript">
   <img src="https://img.shields.io/badge/NativeWind-38BDF8?style=for-the-badge&logo=tailwindcss&logoColor=white" alt="NativeWind">
 </p>
@@ -28,16 +28,17 @@ Each type maps to complementary content — someone who needs help only sees off
 
 ## ✨ Features
 
-- 🗺️ **GPS-filtered discovery** — a map plus a swipeable bottom-sheet list of favors nearby.
+- 🗺️ **GPS-filtered discovery** — real-time device location via `expo-location`; a map plus a swipeable bottom-sheet list of favors nearby. Includes a re-center button to snap back to the user's current position.
 - 🔎 **Search & filters** — by keyword, by type, and across **13 categories** (tools, gardening, pets, transport, moving, languages, cleaning, paperwork, repairs, assembly, tech, urgent…).
 - ⭐ **Favorites** — save the posts you care about.
-- ⏳ **Expiration** — favors have a configurable lifespan so the feed stays fresh.
-- 🔐 **Safety-first connections** — connecting opens a safety-tips modal before redirecting to **WhatsApp**; location is only shared in chat once both parties agree.
+- ⏳ **Expiration** — favors have a configurable lifespan (24 h / 48 h / 7 d / 30 d) so the feed stays fresh.
+- 🔐 **Safety-first connections** — connecting opens a safety-tips modal before redirecting to **WhatsApp**; exact location is only shared in chat once both parties agree.
 - 🔄 **Connection lifecycle** — `pending → accepted → completed / cancelled`, tracked in a Connections screen with separate tabs for received and sent requests.
-- 🌟 **Reviews & reputation** — rate each other after a completed exchange, building local trust over time.
-- 📱 **Phone verification** — one-time code flow to verify a user's number.
+- 🌟 **Reviews & reputation** — rate each other (1–5 stars + optional comment) after a completed exchange, building local trust over time.
+- 📱 **Mandatory phone verification** — two-step SMS flow (number input → 6-digit code via Twilio). Verification is required before a user can connect with neighbors. A badge and prompt are shown in the profile screen, and the connection gate enforces it at the API level too.
+- 🔑 **Google Sign-In** — passwordless auth; an OAuth 2.0 ID token is verified server-side. Session is persisted in AsyncStorage and restored on app launch.
 - 🌍 **Multilingual** — Spanish, English and German (ES / EN / DE) from day one, via `expo-localization`.
-- 🔑 **Google Sign-In** — passwordless auth; an OAuth 2.0 ID token is verified by the backend.
+- ⚖️ **GDPR / RGPD compliant footer** — a reusable `FooterLegal` component appears on all main screens with data sources, full GDPR rights section (access, rectify, export, delete), Privacy Policy and Terms of Use links, and an EU Digital Services Act compliance badge.
 
 ---
 
@@ -45,16 +46,17 @@ Each type maps to complementary content — someone who needs help only sees off
 
 | Area | Technology |
 |------|------------|
-| Framework | React Native 0.85 + Expo SDK 56 (React 19) |
+| Framework | React Native 0.76 + Expo SDK 54 |
 | Language | TypeScript |
-| Styling | NativeWind (Tailwind for React Native) |
+| Styling | NativeWind (Tailwind for React Native) + StyleSheet |
 | Navigation | React Navigation (native-stack) |
 | Maps | `react-native-maps` |
+| Location | `expo-location` |
 | Bottom sheet | `@gorhom/bottom-sheet` |
 | Auth | `@react-native-google-signin/google-signin` |
 | i18n | `expo-localization` + custom translation layer (ES/EN/DE) |
 | Storage | AsyncStorage |
-| API | `fetch` against the Bumerán backend |
+| API | `fetch` against the Bumerán NestJS backend |
 
 ---
 
@@ -63,12 +65,20 @@ Each type maps to complementary content — someone who needs help only sees off
 ```
 src/
 ├── api/            # Backend clients (favores, conexiones, reviews, usuarios, verificacion)
-├── screens/        # auth · favores · conexiones · favoritos · notifications · profile · reviews
-├── context/        # App-wide context (auth, etc.)
+├── components/     # Shared components (FooterLegal, …)
+├── context/        # AuthContext (JWT + session restore + refrescarUsuario), FavoritosContext, LanguageContext
+├── screens/
+│   ├── auth/       # WelcomeScreen, LoginScreen, VerificacionTelefonoScreen
+│   ├── favores/    # MainScreenFavores (map + list), DetailScreen, PedirFavorScreen
+│   ├── conexiones/ # ConexionesScreen
+│   ├── favoritos/  # FavoritosScreen
+│   ├── notifications/ # NotificationsScreen
+│   ├── profile/    # ProfileScreen
+│   └── reviews/    # ReviewScreen
 ├── i18n/           # Translations (es / en / de) + formatting helpers
 ├── data/           # Categories and mock/seed data
 ├── types/          # Shared TypeScript types
-└── utils/          # Helpers
+└── utils/          # Helpers (favorHelpers, etc.)
 ```
 
 ---
@@ -111,7 +121,7 @@ npm run ios        # build & run on iOS
 
 | Repo | Description |
 |------|-------------|
-| [bumeran-backend](https://github.com/Dual-Stack-Studio/bumeran-backend) | Bumerán API — NestJS 11, Prisma, PostgreSQL (Railway) |
+| [bumeran-backend](https://github.com/Dual-Stack-Studio/bumeran-backend) | Bumerán API — NestJS 11, Prisma, PostgreSQL, Twilio (Railway) |
 
 ---
 
