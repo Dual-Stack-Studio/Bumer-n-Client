@@ -34,13 +34,12 @@ export default function VerificacionTelefonoScreen() {
     setCargando(true);
     try {
       const res = await enviarCodigo(telefono.trim(), token ?? '');
-      // En dev el backend devuelve el código; mostrarlo para pruebas
       if (res.codigo) {
         Alert.alert('Código (solo en dev)', `Tu código: ${res.codigo}`);
       }
       setPaso('codigo');
     } catch (e: any) {
-      Alert.alert('Error', t.verificacion.errorSend);
+      Alert.alert('Error', t.verificacion.errorSend + (e?.message ? `\n\n(${e.message})` : ''));
     } finally {
       setCargando(false);
     }
@@ -54,7 +53,39 @@ export default function VerificacionTelefonoScreen() {
       await refrescarUsuario();
       setPaso('exito');
     } catch (e: any) {
-      Alert.alert('Error', t.verificacion.errorVerify);
+      const serverMsg = e?.message ?? '';
+      const isExpired = serverMsg.toLowerCase().includes('expir');
+      const isNotFound = serverMsg.toLowerCase().includes('pendiente');
+      if (isExpired || isNotFound) {
+        Alert.alert(
+          'Error',
+          'El código expiró o ya fue usado. Pedí uno nuevo.',
+          [{ text: 'Pedir nuevo código', onPress: handleReenviar }],
+        );
+      } else {
+        Alert.alert('Error', t.verificacion.errorVerify + (serverMsg ? `\n\n(${serverMsg})` : ''));
+      }
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  const handleReenviar = async () => {
+    if (!telefono.trim()) {
+      setPaso('telefono');
+      return;
+    }
+    setCargando(true);
+    try {
+      const res = await enviarCodigo(telefono.trim(), token ?? '');
+      setCodigo('');
+      if (res.codigo) {
+        Alert.alert('Código (solo en dev)', `Tu código: ${res.codigo}`);
+      } else {
+        Alert.alert('Código enviado', 'Revisá tu SMS para el nuevo código.');
+      }
+    } catch (e: any) {
+      Alert.alert('Error', t.verificacion.errorSend);
     } finally {
       setCargando(false);
     }
@@ -145,7 +176,8 @@ export default function VerificacionTelefonoScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.resendButton}
-              onPress={() => { setCodigo(''); setPaso('telefono'); }}
+              onPress={handleReenviar}
+              disabled={cargando}
             >
               <Text style={styles.resendText}>{t.verificacion.resend}</Text>
             </TouchableOpacity>
